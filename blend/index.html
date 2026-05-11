@@ -4,12 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <meta name="theme-color" content="#0a0a0a">
-<meta name="description" content="Editorial poster maker. Type a phrase, the system arranges it in a magazine spread: classical serif hierarchy, italic deck, horizontal rules. PNG or video export. Part of FORM, a typography lab.">
-<title>Editorial poster maker — FORM</title>
+<meta name="description" content="Blend Lab. Mix any subset of the five FORM philosophies — Swiss, Editorial, Brutalist, Kinetic, Painterly — on a 5-axis weight space. The dominant philosophy drives layout, palettes interpolate.">
+<title>Blend Lab — FORM</title>
 <link rel="stylesheet" href="../shared/style.css">
 <script src="../shared/app.js" defer></script>
 <script src="../shared/parse.js" defer></script>
+<script src="../shared/philosophies/swiss.js" defer></script>
 <script src="../shared/philosophies/editorial.js" defer></script>
+<script src="../shared/philosophies/brutalist.js" defer></script>
+<script src="../shared/philosophies/kinetic.js" defer></script>
+<script src="../shared/philosophies/painterly.js" defer></script>
+<script src="../shared/philosophies/blend.js" defer></script>
 </head>
 <body>
 
@@ -66,11 +71,11 @@
 
 <div id="controlbar">
   <a class="pb" href="../swiss/"     data-id="swiss"     aria-label="Swiss"    >SWISS<span class="kbk">1</span></a>
-  <a class="pb on" href="../editorial/" data-id="editorial" aria-label="Editorial">EDITORIAL<span class="kbk">2</span></a>
+  <a class="pb"    href="../editorial/" data-id="editorial" aria-label="Editorial">EDITORIAL<span class="kbk">2</span></a>
   <a class="pb"    href="../brutalist/" data-id="brutalist" aria-label="Brutalist">BRUTALIST<span class="kbk">3</span></a>
   <a class="pb"    href="../kinetic/"   data-id="kinetic"   aria-label="Kinetic"  >KINETIC<span class="kbk">4</span></a>
   <a class="pb"    href="../painterly/" data-id="painterly" aria-label="Painterly">PAINTERLY<span class="kbk">5</span></a>
-  <a class="pb"    href="../blend/"     data-id="blend"     aria-label="Blend"    >BLEND<span class="kbk">B</span></a>
+  <a class="pb on" href="../blend/"     data-id="blend"     aria-label="Blend"    >BLEND<span class="kbk">B</span></a>
 </div>
 
 <aside id="drawer" aria-label="Controls" role="region">

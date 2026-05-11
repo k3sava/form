@@ -112,3 +112,8 @@ window.FORM_PHILOSOPHY={
 
   motion:{ kind:'morph', intensity:0.4, rate:0.6 },
 };
+
+// Register for the Blend Lab (deduplicated by id)
+window.__formAllPhilosophies = (window.__formAllPhilosophies||[])
+  .filter(p=>p.id !== window.FORM_PHILOSOPHY.id)
+  .concat([window.FORM_PHILOSOPHY]);
