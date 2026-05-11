@@ -244,6 +244,26 @@ function detectIntent(tree){
     }
   });
 
+  // 1.5 SETUP-CLAUSE COHESION. Stop-words between an antonym setup and its
+  //     payoff inherit the setup scale. "less is more" must render as
+  //     [less is] (whisper) → [more] (display), not "is" suddenly tall in
+  //     the middle of the setup clause.
+  allTokens.forEach((t, i)=>{
+    if(t.intentRole !== 'antonym-setup') return;
+    let payoffIdx = -1;
+    for(let j=i+1; j<allTokens.length; j++){
+      if(allTokens[j].intentRole === 'antonym-payoff'){ payoffIdx = j; break; }
+    }
+    if(payoffIdx <= i) return;
+    for(let j=i+1; j<payoffIdx; j++){
+      const tk = allTokens[j];
+      if(tk.isStop && tk.intentScale <= 1.1){
+        tk.intentScale = 0.7;
+        tk.intentRole = tk.intentRole || 'setup-cohesion';
+      }
+    }
+  });
+
   // 2. IMPERATIVE / ACTION verb at sentence start → monumental.
   if(allTokens[0]){
     const first = lc[0];

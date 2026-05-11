@@ -113,7 +113,10 @@ window.FORM_PHILOSOPHY = {
           alpha: Math.random()*.4 + .3,
         });
       }
-      this._state = { n:cnt, branches, seeds, age:0 };
+      // segments[] records every stroke drawn during growth so unwind can
+      // replay the formation in reverse (tips retract first, mirroring how
+      // they extended outward from the letter edges).
+      this._state = { n:cnt, branches, seeds, age:0, segments:[], lastKept:-1 };
       this._lastKey = stateKey;
       this._lastCycle = cycleId;
       ctx.fillStyle = this.palette.bg;
@@ -122,24 +125,43 @@ window.FORM_PHILOSOPHY = {
 
     const s = this._state;
     s.age++;
-    // Growth window: 0.0–0.55 actively grow.
-    // Rest window:   0.55–0.70 hold steady.
-    // Fade window:   0.70–1.00 wipe with increasing alpha.
+    // Growth: 0.00–0.55 — branches extend, segments recorded.
+    // Rest:   0.55–0.70 — formed word holds steady.
+    // Unwind: 0.70–1.00 — tips retract toward seeds (reverse of growth).
     const growing = phase < 0.55;
     const fading  = phase >= 0.70;
+
     if(fading){
-      // Fade canvas with rising alpha proportional to how far into the fade window we are.
+      // Replay segments[0 .. keepCount-1]. As phase advances 0.70→1.0, keepCount
+      // drops from total→0, so the last-drawn segments (tips) vanish first.
       const fadeT = (phase - 0.70) / 0.30; // 0..1
-      const wipeAlpha = 0.04 + Math.pow(fadeT, 1.6) * 0.18;
-      ctx.fillStyle = `rgba(10,10,10,${wipeAlpha.toFixed(3)})`;
-      ctx.fillRect(0,0,W,H);
-    } else if(s.age % 180 === 0){
-      // Light periodic wash to keep the field from over-filling during growth.
+      // Slight ease so the retraction accelerates toward the end.
+      const eased = Math.pow(fadeT, 1.15);
+      const total = s.segments.length;
+      const keepCount = Math.max(0, Math.round(total * (1 - eased)));
+      if(keepCount !== s.lastKept){
+        ctx.fillStyle = this.palette.bg;
+        ctx.fillRect(0,0,W,H);
+        for(let i=0; i<keepCount; i++){
+          const seg = s.segments[i];
+          ctx.globalAlpha = seg.a;
+          ctx.strokeStyle = seg.s;
+          ctx.lineWidth   = seg.w;
+          ctx.beginPath();
+          ctx.moveTo(seg.x1, seg.y1);
+          ctx.lineTo(seg.x2, seg.y2);
+          ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+        s.lastKept = keepCount;
+      }
+      // Skip branch advancement during unwind.
+      return;
+    } else if(growing && s.age % 180 === 0){
+      // Light periodic wash keeps the field from over-filling during growth.
       ctx.fillStyle='rgba(10,10,10,.15)';
       ctx.fillRect(0,0,W,H);
     }
-    // Suppress further branch advancement once we hit deep fade
-    if(phase >= 0.92){ return; }
 
     const step = grow*.3;
     for(const b of s.branches){
@@ -165,12 +187,17 @@ window.FORM_PHILOSOPHY = {
       const px2=Math.max(0,Math.min(W-1,nx|0)), py2=Math.max(0,Math.min(H-1,ny|0));
       const nl = lum[py2*W + px2];
 
-      ctx.strokeStyle = `hsl(${b.hue},${40+nl*30}%,${45+nl*30}%)`;
-      ctx.lineWidth = .4 + nl*.6;
+      const segStroke = `hsl(${b.hue|0},${(40+nl*30)|0}%,${(45+nl*30)|0}%)`;
+      const segWidth  = .4 + nl*.6;
+      const segAlpha  = ctx.globalAlpha;
+      ctx.strokeStyle = segStroke;
+      ctx.lineWidth = segWidth;
       ctx.beginPath();
       ctx.moveTo(b.x, b.y);
       ctx.lineTo(nx, ny);
       ctx.stroke();
+      // Record for reverse replay during unwind.
+      s.segments.push({x1:b.x, y1:b.y, x2:nx, y2:ny, s:segStroke, w:segWidth, a:segAlpha});
 
       b.x = nx; b.y = ny; b.len += step;
       // Side-branch occasionally
