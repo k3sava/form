@@ -161,6 +161,13 @@ window.FORM_PHILOSOPHY = {
 
     const s = this._state;
     s.age++;
+    // Branch advance must be proportional to elapsed virtual time so live
+    // playback (60 fps live, ~16 ms/call) and offline export (24 fps,
+    // ~42 ms/call) look the same for the same value of t.
+    const _prevT = this._lastT;
+    const _dt = (_prevT == null || _prevT > t) ? 16.6667 : Math.min(120, t - _prevT);
+    this._lastT = t;
+    const _timeScale = _dt / 16.6667;
     // Growth: 0.00–0.55 — branches extend, segments recorded.
     // Rest:   0.55–0.70 — formed word holds steady.
     // Unwind: 0.70–1.00 — tips retract toward seeds (reverse of growth).
@@ -199,7 +206,7 @@ window.FORM_PHILOSOPHY = {
       ctx.fillRect(0,0,W,H);
     }
 
-    const step = grow*.3;
+    const step = grow * 0.3 * _timeScale;
     for(const b of s.branches){
       if(!b.alive)continue;
       ctx.save();
@@ -237,7 +244,7 @@ window.FORM_PHILOSOPHY = {
 
       b.x = nx; b.y = ny; b.len += step;
       // Side-branch occasionally
-      if(b.len > 20 && Math.random() < .005 * grow && s.branches.length < cnt*3){
+      if(b.len > 20 && Math.random() < .005 * grow * _timeScale && s.branches.length < cnt*3){
         s.branches.push({
           ...b,
           ang: b.ang + (Math.random() > .5 ? 1 : -1) * .8,

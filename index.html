@@ -17,7 +17,7 @@
 <div id="rec-overlay">
   <div class="rec-inner">
     <div class="rec-dot"></div>
-    <span id="rec-label">RECORDING — 30s</span>
+    <span id="rec-label">RENDERING — 15s @ 24fps</span>
     <div class="rec-track"><div id="rec-bar"></div></div>
   </div>
 </div>
@@ -152,7 +152,13 @@ window.addEventListener('load', function(){
     },
     textInput,
   });
-  window.__bindExport(canvas);
+  function renderFrame(t){
+    if(window.__applyInteractive) window.__applyInteractive(phil);
+    const fmt = window.FORMATS[window.state.format];
+    const layout = phil.layout(window.state.tree, fmt, window.state.controls);
+    phil.render(ctx, layout, t, window.state.controls, window.state.tree);
+  }
+  window.__bindExport(canvas, renderFrame);
 
   function tick(ts){
     if(window.__motionPaused){ requestAnimationFrame(tick); return; }

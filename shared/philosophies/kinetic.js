@@ -102,13 +102,18 @@ window.FORM_PHILOSOPHY = {
       // Integer harmonic keeps the loop closed.
       const idxPhase = (i / Math.max(1, N)) * spread;
       const local = ((phase - idxPhase) % 1 + 1) % 1; // 0..1
-      const wave = Math.sin(local * Math.PI * 2 * harmonic);
+      const ang = local * Math.PI * 2 * harmonic;
+      // Weight wave is a single bell per loop: 0 at phase 0 (thin) → 1 at
+      // phase 0.5 (fat) → 0 at phase 1 (thin = start). Smooth seamless loop.
+      const weightWave = (1 - Math.cos(ang)) / 2;
+      // Vertical wobble is symmetric around 0.
+      const wobbleWave = Math.sin(ang);
       // Payoff glyphs oscillate wider; setup narrower.
       const isPayoff = ['antonym-payoff','time-payoff','payoff','imperative','question'].includes(g.intentRole);
       const isSetup  = g.intentRole === 'antonym-setup' || g.intentRole === 'setup-cohesion' || g.isStop;
       const range = isPayoff ? 380 : (isSetup ? 120 : 240);
-      const wt = Math.max(100, Math.min(900, Math.round(baseWt + wave * range * ampG)));
-      const wobbleY = wave * g.fontSize * 0.045 * wobble;
+      const wt = Math.max(100, Math.min(900, Math.round(baseWt + weightWave * range * ampG)));
+      const wobbleY = wobbleWave * g.fontSize * 0.045 * wobble;
       const color = (highlight && isPayoff) ? this.palette.accent : (isSetup ? this.palette.dim : this.palette.fg);
 
       ctx.fillStyle = color;
