@@ -46,6 +46,12 @@ body{position:relative;width:100vw;height:100dvh;overflow:hidden;}
 .sdsc{font-size:.52rem;font-weight:300;letter-spacing:.05em;color:var(--ov-dim);}
 @media(max-width:440px){.srow{border-right:none;}.srow:nth-last-child(-n+2){border-bottom:1px solid var(--ov-row-border);}.srow:last-child{border-bottom:none;}.srow.cta{border-bottom:none;}}
 @keyframes blink{0%,100%{opacity:1;}50%{opacity:.4;}}
+body:not(.chrome-on) #topbar,
+body:not(.chrome-on) #controlbar,
+body:not(.chrome-on) #drawer{opacity:0;pointer-events:none;}
+.chrome-on #topbar.show,
+.chrome-on #controlbar.show,
+.chrome-on #drawer.open{opacity:1;pointer-events:auto;}
 #rec-overlay{display:none;position:fixed;inset:0;background:var(--rec-overlay);align-items:center;justify-content:center;z-index:100;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);}
 .rec-inner{display:flex;flex-direction:column;align-items:center;gap:16px;min-width:220px;}
 .rec-dot{width:9px;height:9px;background:#c0392b;border-radius:50%;animation:blink .8s ease-in-out infinite;}
@@ -948,6 +954,39 @@ document.getElementById('video-btn').onclick=function(){
   setTimeout(()=>{if(mediaRec&&mediaRec.state!=='inactive')mediaRec.stop();},30000);
 };
 }
+
+// ═══════════════════════════════════════════
+// SPLASH dismiss / replay
+// ═══════════════════════════════════════════
+(function(){
+  const splash=document.getElementById('splash');
+  let dismissed=false;
+  function dismiss(){
+    if(dismissed)return;
+    dismissed=true;
+    splash.classList.add('gone');
+    document.body.classList.add('chrome-on');
+  }
+  function open(){
+    dismissed=false;
+    splash.classList.remove('gone');
+    document.body.classList.remove('chrome-on');
+  }
+  splash.addEventListener('click',dismiss);
+  document.addEventListener('keydown',(e)=>{
+    if(!dismissed){
+      if(['Shift','Control','Alt','Meta','CapsLock','Tab'].includes(e.key))return;
+      e.preventDefault();
+      dismiss();
+    }else if(e.key==='?'||(e.key==='/'&&e.shiftKey)){
+      e.preventDefault();
+      open();
+    }else if(e.key==='Escape'){
+      // future tasks will close drawer/etc — no-op for now
+    }
+  });
+  window.__splash={open,dismiss};
+})();
 </script>
 </body>
 </html>
