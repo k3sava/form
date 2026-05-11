@@ -46,11 +46,20 @@ body{position:relative;width:100vw;height:100dvh;overflow:hidden;}
 .sdsc{font-size:.52rem;font-weight:300;letter-spacing:.05em;color:var(--ov-dim);}
 @media(max-width:440px){.srow{border-right:none;}.srow:nth-last-child(-n+2){border-bottom:1px solid var(--ov-row-border);}.srow:last-child{border-bottom:none;}.srow.cta{border-bottom:none;}}
 @keyframes blink{0%,100%{opacity:1;}50%{opacity:.4;}}
-body:not(.chrome-on) #topbar,
-body:not(.chrome-on) #controlbar,
-body:not(.chrome-on) #drawer{opacity:0;pointer-events:none;}
-.chrome-on #topbar.show,
-.chrome-on #controlbar.show,
+/* TOP BAR */
+#topbar{position:fixed;top:14px;right:14px;z-index:30;display:flex;gap:5px;transition:opacity .5s ease;}
+.tb{font:300 13px/1 'Helvetica Neue',Helvetica,Arial,sans-serif;color:var(--pill-text);background:var(--pill-bg);border:1px solid var(--pill-border);border-radius:100px;min-width:36px;height:32px;padding:0 10px;display:flex;align-items:center;justify-content:center;gap:4px;cursor:pointer;transition:color .3s,background .3s;position:relative;-webkit-tap-highlight-color:transparent;}
+.tb:hover{background:var(--pill-bg);color:var(--pill-text-active);}
+.tb.rec-active{border-color:#c0392b;color:#c0392b;animation:blink .9s ease-in-out infinite;}
+.tb .kbk{font-size:.34rem;opacity:.4;font-weight:300;letter-spacing:.04em;position:absolute;bottom:3px;right:7px;}
+@media(hover:none) and (pointer:coarse){.tb .kbk{display:none;}}
+.tb svg{width:14px;height:14px;display:block;}
+.tb .sun{display:none;}
+[data-theme="light"] .tb .moon{display:none;}
+[data-theme="light"] .tb .sun{display:block;}
+#topbar,#controlbar,#drawer{opacity:0;pointer-events:none;transition:opacity .5s ease;}
+.chrome-on #topbar{opacity:1;pointer-events:auto;}
+.chrome-on #controlbar.show{opacity:1;pointer-events:auto;}
 .chrome-on #drawer.open{opacity:1;pointer-events:auto;}
 #rec-overlay{display:none;position:fixed;inset:0;background:var(--rec-overlay);align-items:center;justify-content:center;z-index:100;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);}
 .rec-inner{display:flex;flex-direction:column;align-items:center;gap:16px;min-width:220px;}
@@ -106,6 +115,19 @@ main{position:fixed;inset:0;display:flex;align-items:center;justify-content:cent
       </div>
     </div>
   </div>
+</div>
+
+<!-- TOP BAR -->
+<div id="topbar">
+  <button class="tb" id="btn-help" aria-label="Help" title="Help (?)">?<span class="kbk">?</span></button>
+  <button class="tb" id="btn-theme" aria-label="Toggle theme" title="Theme (T)">
+    <svg class="moon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 9.2A5.5 5.5 0 1 1 6.8 2.5a4.5 4.5 0 0 0 6.7 6.7z"/></svg>
+    <svg class="sun"  viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.4M8 13.1v1.4M1.5 8h1.4M13.1 8h1.4M3.4 3.4l1 1M11.6 11.6l1 1M3.4 12.6l1-1M11.6 4.4l1-1"/></svg>
+    <span class="kbk">T</span>
+  </button>
+  <button class="tb" id="btn-drawer" aria-label="Open controls drawer" title="Drawer (/)">✎<span class="kbk">/</span></button>
+  <button class="tb" id="btn-save" aria-label="Save PNG" title="Save PNG (S)">↓<span class="kbk">S</span></button>
+  <button class="tb" id="btn-record" aria-label="Record video" title="Record video (R)">●<span class="kbk">R</span></button>
 </div>
 
 <main id="canvas-wrap">
@@ -870,9 +892,8 @@ requestAnimationFrame(tick);
 // ═══════════════════════════════════════════
 // THEME TOGGLE
 // ═══════════════════════════════════════════
-if(false){
 (function(){
-  const btn=document.getElementById('theme-btn');
+  const btn=document.getElementById('btn-theme');
   const meta=document.querySelector('meta[name="theme-color"]');
   function apply(mode){
     if(mode==='light'){
@@ -888,8 +909,8 @@ if(false){
     apply(next);
     try{localStorage.setItem('form-theme',next);}catch(e){}
   };
+  document.getElementById('btn-help').onclick=()=>window.__splash.open();
 })();
-}
 
 // ═══════════════════════════════════════════
 // EXPORT — PNG
