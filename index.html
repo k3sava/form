@@ -886,6 +886,7 @@ EFFECTS.forEach((e,i)=>{
     document.querySelectorAll('#controlbar .pb').forEach((b,j)=>b.classList.toggle('on',j===i));
     if(typeof buildParams==='function')buildParams();
     resetAll();
+    canvas.setAttribute('aria-label',`FORM poster: "${state.text}" in ${EFFECTS[state.effect].name} style`);
   };
   controlbar.appendChild(btn);
 });
@@ -906,6 +907,7 @@ function buildParams(){
   });
 }
 buildParams();
+canvas.setAttribute('aria-label',`FORM poster: "${state.text}" in ${EFFECTS[state.effect].name} style`);
 
 function resetAll(){
   EFFECTS.forEach(e=>{
@@ -943,6 +945,7 @@ document.querySelectorAll('.fmt-btn').forEach(btn=>{
 textInput.addEventListener('input',()=>{
   state.text=textInput.value.trim()||'LESS. BETTER.';
   textCache.key='';
+  canvas.setAttribute('aria-label',`FORM poster: "${state.text}" in ${EFFECTS[state.effect].name} style`);
 });
 
 // ═══════════════════════════════════════════
@@ -1078,6 +1081,13 @@ document.getElementById('btn-record').onclick=function(){
     }
   });
   window.__splash={open,dismiss};
+
+  // Focus trap while splash is open: Tab does nothing
+  splash.tabIndex=-1;
+  splash.addEventListener('keydown',(e)=>{
+    if(e.key==='Tab')e.preventDefault();
+  });
+  splash.focus({preventScroll:true});
 })();
 
 // ═══════════════════════════════════════════
@@ -1141,6 +1151,18 @@ document.getElementById('btn-record').onclick=function(){
       window.__splash.open();
     }
   });
+})();
+
+// ═══════════════════════════════════════════
+// REDUCED MOTION
+// ═══════════════════════════════════════════
+(function(){
+  const mq=window.matchMedia('(prefers-reduced-motion: reduce)');
+  function apply(){
+    window.__motionPaused=mq.matches;
+  }
+  if(mq.addEventListener){mq.addEventListener('change',apply);}else if(mq.addListener){mq.addListener(apply);}
+  apply();
 })();
 </script>
 </body>
