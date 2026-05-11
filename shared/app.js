@@ -32,11 +32,14 @@ window.state={
   controls: {},
 };
 
-// Splash dismiss / replay
+// Splash dismiss / replay (session-persisted)
 (function(){
   const splash=document.getElementById('splash');
   if(!splash)return;
+  const KEY='form-splash-dismissed';
   let dismissed=false;
+  try{ if(sessionStorage.getItem(KEY)==='1')dismissed=true; }catch(e){}
+
   function dismiss(){
     if(dismissed)return;
     dismissed=true;
@@ -44,6 +47,7 @@ window.state={
     document.body.classList.add('chrome-on');
     const cb=document.getElementById('controlbar');
     if(cb)cb.classList.add('show');
+    try{ sessionStorage.setItem(KEY,'1'); }catch(e){}
   }
   function open(){
     dismissed=false;
@@ -51,7 +55,17 @@ window.state={
     document.body.classList.remove('chrome-on');
     const cb=document.getElementById('controlbar');
     if(cb)cb.classList.remove('show');
+    try{ sessionStorage.removeItem(KEY); }catch(e){}
   }
+
+  // If already dismissed this session, hide splash immediately and show chrome
+  if(dismissed){
+    splash.classList.add('gone');
+    document.body.classList.add('chrome-on');
+    const cb=document.getElementById('controlbar');
+    if(cb)cb.classList.add('show');
+  }
+
   splash.addEventListener('click',dismiss);
   document.addEventListener('keydown',(e)=>{
     if(!dismissed){
@@ -67,7 +81,7 @@ window.state={
   });
   splash.tabIndex=-1;
   splash.addEventListener('keydown',(e)=>{ if(e.key==='Tab')e.preventDefault(); });
-  splash.focus({preventScroll:true});
+  if(!dismissed)splash.focus({preventScroll:true});
   window.__splash={open,dismiss};
 })();
 
@@ -209,4 +223,16 @@ window.__bindExport=function(canvas){
     }
     tick();
   };
+};
+
+// Shared text persistence (sessionStorage)
+window.__loadSharedText=function(defaultText){
+  try{
+    const v=sessionStorage.getItem('form-text');
+    if(v!==null&&v!=='')return v;
+  }catch(e){}
+  return defaultText;
+};
+window.__saveSharedText=function(text){
+  try{ sessionStorage.setItem('form-text', text||''); }catch(e){}
 };

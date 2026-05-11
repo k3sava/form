@@ -7,87 +7,172 @@
 <meta name="description" content="FORM is a browser-based typography lab. Type a phrase, the system arranges it in five named design philosophies: Swiss, Editorial, Brutalist, Kinetic, Painterly. PNG or video export, no accounts, runs entirely in your browser.">
 <title>FORM — typography lab</title>
 <link rel="stylesheet" href="shared/style.css">
-<style>
-  body{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:48px 20px;overflow-y:auto;height:auto;min-height:100dvh;}
-  .hub-title{font:200 clamp(1.4rem,4vw,2.4rem)/1 'Helvetica Neue',Helvetica,Arial,sans-serif;letter-spacing:.32em;color:var(--ov-text);margin-bottom:14px;text-align:center;}
-  .hub-tagline{font:300 clamp(.65rem,1vw,.85rem)/1.6 'Helvetica Neue',Helvetica,Arial,sans-serif;letter-spacing:.12em;color:var(--ov-dim);margin-bottom:48px;text-align:center;max-width:480px;}
-  .phil-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px;width:100%;max-width:1100px;}
-  .phil-card{position:relative;border:1px solid var(--ov-border);border-radius:14px;background:var(--ov-grid-bg);padding:0;text-decoration:none;color:var(--ov-text);display:flex;flex-direction:column;overflow:hidden;transition:border-color .2s,transform .2s;}
-  .phil-card:hover{border-color:var(--ov-mid);transform:translateY(-2px);}
-  .phil-card.soon{opacity:.55;pointer-events:none;}
-  .phil-preview{aspect-ratio:5/4;background:var(--ov-row-bg);display:flex;align-items:center;justify-content:center;color:var(--ov-mid);font-size:.5rem;letter-spacing:.2em;text-transform:uppercase;}
-  .phil-info{padding:14px 16px 16px;}
-  .phil-name{font:700 .82rem/1 'Helvetica Neue',Helvetica,Arial,sans-serif;letter-spacing:.16em;text-transform:uppercase;margin-bottom:6px;}
-  .phil-desc{font:300 .62rem/1.7 'Helvetica Neue',Helvetica,Arial,sans-serif;letter-spacing:.04em;color:var(--ov-dim);}
-  .phil-tag{position:absolute;top:10px;left:10px;background:var(--ov-bg);color:var(--ov-mid);font:300 .42rem/1 'Helvetica Neue',Helvetica,Arial,sans-serif;letter-spacing:.18em;text-transform:uppercase;padding:5px 9px;border-radius:6px;border:1px solid var(--ov-border);}
-  .hub-foot{margin-top:48px;font:300 .52rem/1.6 'Helvetica Neue',Helvetica,Arial,sans-serif;letter-spacing:.18em;text-transform:uppercase;color:var(--ov-dim);display:flex;gap:14px;align-items:center;}
-  .hub-foot a{color:var(--ov-dim);text-decoration:none;transition:color .2s;}
-  .hub-foot a:hover{color:var(--ov-text);}
-  .hub-foot .dot{opacity:.4;}
-</style>
+<script src="shared/app.js" defer></script>
+<script src="shared/parse.js" defer></script>
+<script src="shared/philosophies/swiss.js" defer></script>
 </head>
 <body>
 
-<div class="hub-title">F O R M</div>
-<div class="hub-tagline">type a phrase. the system arranges it like a typographer. five named design philosophies, one canvas.</div>
-
-<div class="phil-grid">
-  <a class="phil-card" href="swiss/">
-    <span class="phil-tag">Live</span>
-    <div class="phil-preview">swiss preview</div>
-    <div class="phil-info">
-      <div class="phil-name">Swiss</div>
-      <div class="phil-desc">Müller-Brockmann grid. Off-white, primary blocks, asymmetric balance.</div>
-    </div>
-  </a>
-  <a class="phil-card" href="editorial/">
-    <span class="phil-tag">Live</span>
-    <div class="phil-preview">editorial preview</div>
-    <div class="phil-info">
-      <div class="phil-name">Editorial</div>
-      <div class="phil-desc">Classical hierarchy. Serif headlines, italic deck, horizontal rules.</div>
-    </div>
-  </a>
-  <a class="phil-card soon" href="brutalist/">
-    <span class="phil-tag">Soon</span>
-    <div class="phil-preview">brutalist preview</div>
-    <div class="phil-info">
-      <div class="phil-name">Brutalist</div>
-      <div class="phil-desc">Raw paper, photocopier grain, misregistration as design.</div>
-    </div>
-  </a>
-  <a class="phil-card soon" href="kinetic/">
-    <span class="phil-tag">Soon</span>
-    <div class="phil-preview">kinetic preview</div>
-    <div class="phil-info">
-      <div class="phil-name">Kinetic</div>
-      <div class="phil-desc">Variable-font choreography. Letters along wght and wdth axes.</div>
-    </div>
-  </a>
-  <a class="phil-card soon" href="painterly/">
-    <span class="phil-tag">Soon</span>
-    <div class="phil-preview">painterly preview</div>
-    <div class="phil-info">
-      <div class="phil-name">Painterly</div>
-      <div class="phil-desc">Sumi ink. Each letter blooms onto paper, then rests still.</div>
-    </div>
-  </a>
-  <a class="phil-card soon" href="blend/">
-    <span class="phil-tag">Soon</span>
-    <div class="phil-preview">blend preview</div>
-    <div class="phil-info">
-      <div class="phil-name">Blend Lab</div>
-      <div class="phil-desc">Mix any subset of the five on a 5-axis weight space.</div>
-    </div>
-  </a>
+<div id="rec-overlay">
+  <div class="rec-inner">
+    <div class="rec-dot"></div>
+    <span id="rec-label">RECORDING — 30s</span>
+    <div class="rec-track"><div id="rec-bar"></div></div>
+  </div>
 </div>
 
-<div class="hub-foot">
-  <span>FORM</span><span class="dot">·</span>
-  <a href="https://iamkesava.com" target="_blank" rel="noopener">by Kesava</a>
-  <span class="dot">·</span>
-  <a href="https://github.com/k3sava/form" target="_blank" rel="noopener">source</a>
+<div class="ov" id="splash" role="dialog" aria-modal="true" aria-labelledby="spl-title">
+  <div class="spl-inner">
+    <div class="spl-title" id="spl-title">FORM</div>
+    <div class="spl-desc">a typography lab</div>
+    <div class="sgrid sck">
+      <div class="srow"><span class="skey">Type</span><span class="sdsc">edit phrase</span></div>
+      <div class="srow"><span class="skey">1–5</span><span class="sdsc">switch philosophy</span></div>
+      <div class="srow"><span class="skey">Space</span><span class="sdsc">play / pause motion</span></div>
+      <div class="srow"><span class="skey">/</span><span class="sdsc">focus phrase input</span></div>
+      <div class="srow"><span class="skey">T</span><span class="sdsc">theme</span></div>
+      <div class="srow"><span class="skey">S</span><span class="sdsc">save PNG</span></div>
+      <div class="srow"><span class="skey">R</span><span class="sdsc">record video</span></div>
+      <div class="srow"><span class="skey">?</span><span class="sdsc">help</span></div>
+      <div class="srow cta">
+        <span class="skey">Enter</span>
+        <span class="cta-phrase"><span class="cta-word">tap anywhere to begin</span><span class="blink-dot"></span></span>
+      </div>
+    </div>
+    <div class="sgrid sct">
+      <div class="srow"><span class="skey">Tap</span><span class="sdsc">edit / interact</span></div>
+      <div class="srow"><span class="skey">Swipe</span><span class="sdsc">switch philosophy</span></div>
+      <div class="srow"><span class="skey">Hold</span><span class="sdsc">show controls</span></div>
+      <div class="srow"><span class="skey">⋯</span><span class="sdsc">help in top corner</span></div>
+      <div class="srow cta">
+        <span class="skey">Tap</span>
+        <span class="cta-phrase"><span class="cta-word">tap anywhere to begin</span><span class="blink-dot"></span></span>
+      </div>
+    </div>
+  </div>
 </div>
 
+<div id="topbar">
+  <button class="tb" id="btn-help" aria-label="Help" title="Help (?)">?<span class="kbk">?</span></button>
+  <button class="tb" id="btn-theme" aria-label="Toggle theme" title="Theme (T)">
+    <svg class="moon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 9.2A5.5 5.5 0 1 1 6.8 2.5a4.5 4.5 0 0 0 6.7 6.7z"/></svg>
+    <svg class="sun"  viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.4M8 13.1v1.4M1.5 8h1.4M13.1 8h1.4M3.4 3.4l1 1M11.6 11.6l1 1M3.4 12.6l1-1M11.6 4.4l1-1"/></svg>
+    <span class="kbk">T</span>
+  </button>
+  <button class="tb" id="btn-drawer" aria-label="Open controls drawer" title="Drawer (/)">✎<span class="kbk">/</span></button>
+  <button class="tb" id="btn-save" aria-label="Save PNG" title="Save PNG (S)">↓<span class="kbk">S</span></button>
+  <button class="tb" id="btn-record" aria-label="Record video" title="Record video (R)">●<span class="kbk">R</span></button>
+</div>
+
+<div id="controlbar">
+  <a class="pb on" href="swiss/"     data-id="swiss"     aria-label="Swiss"    >SWISS<span class="kbk">1</span></a>
+  <a class="pb"    href="editorial/" data-id="editorial" aria-label="Editorial">EDITORIAL<span class="kbk">2</span></a>
+  <a class="pb"    href="brutalist/" data-id="brutalist" aria-label="Brutalist (coming soon)" style="opacity:.45">BRUTALIST<span class="kbk">3</span></a>
+  <a class="pb"    href="kinetic/"   data-id="kinetic"   aria-label="Kinetic (coming soon)"   style="opacity:.45">KINETIC<span class="kbk">4</span></a>
+  <a class="pb"    href="painterly/" data-id="painterly" aria-label="Painterly (coming soon)" style="opacity:.45">PAINTERLY<span class="kbk">5</span></a>
+  <a class="pb"    href="blend/"     data-id="blend"     aria-label="Blend (coming soon)"     style="opacity:.45">BLEND<span class="kbk">B</span></a>
+</div>
+
+<aside id="drawer" aria-label="Controls" role="region">
+  <div class="drw-section">
+    <span class="drw-label">Phrase</span>
+    <input id="text-input" type="text" value="LESS. BETTER." placeholder="YOUR TEXT" autocomplete="off" spellcheck="false">
+  </div>
+  <div class="drw-section">
+    <span class="drw-label">Format</span>
+    <div class="fmt-row">
+      <button class="fmt-btn active" data-fmt="square" aria-label="Square 1:1">&#x25A1;</button>
+      <button class="fmt-btn" data-fmt="portrait" aria-label="Portrait 4:5">&#x2590;</button>
+      <button class="fmt-btn" data-fmt="landscape" aria-label="Landscape 1.91:1">&#x2582;</button>
+    </div>
+  </div>
+  <div class="drw-section">
+    <span class="drw-label">Parameters</span>
+    <div class="param-row" id="param-row"></div>
+  </div>
+</aside>
+
+<main id="canvas-wrap"><canvas id="canvas"></canvas></main>
+
+<script>
+window.addEventListener('load', function(){
+  const phil = window.FORM_PHILOSOPHY;
+  window.state.philosophy = phil;
+  window.state.controls = Object.assign({}, phil.defaults);
+
+  const {canvas, ctx, size} = window.__canvasReady();
+  const textInput = document.getElementById('text-input');
+  const paramRow = document.getElementById('param-row');
+
+  function buildParams(){
+    paramRow.innerHTML='';
+    phil.controls.forEach((p,i)=>{
+      const val = window.state.controls[p.key];
+      const div = document.createElement('div');
+      div.className='param';
+      div.innerHTML = '<div class="param-header"><span class="param-label">'+p.label+'</span><span class="param-val" id="pv'+i+'">'+p.fmt(val)+'</span></div><input type="range" min="'+p.min+'" max="'+p.max+'" step="'+p.step+'" value="'+val+'" id="ps'+i+'">';
+      paramRow.appendChild(div);
+      div.querySelector('input').oninput = function(){
+        const v=parseFloat(this.value);
+        window.state.controls[p.key]=v;
+        document.getElementById('pv'+i).textContent = p.fmt(v);
+      };
+    });
+  }
+  buildParams();
+
+  document.querySelectorAll('.fmt-btn').forEach(btn => {
+    btn.onclick = () => {
+      window.state.format = btn.dataset.fmt;
+      document.querySelectorAll('.fmt-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      size();
+    };
+  });
+
+  function updateAria(){
+    canvas.setAttribute('aria-label', 'FORM '+phil.name+' poster: "'+window.state.text+'"');
+  }
+  textInput.addEventListener('input', () => {
+    const v = textInput.value.trim() || 'LESS. BETTER.';
+    window.state.text = v;
+    window.state.tree = window.__parse.basic(v);
+    window.__saveSharedText(textInput.value);
+    updateAria();
+  });
+  // Load shared phrase from sessionStorage (or use the default)
+  const loaded = window.__loadSharedText(textInput.value);
+  textInput.value = loaded;
+  window.state.text = loaded;
+  window.state.tree = window.__parse.basic(window.state.text);
+  updateAria();
+  window.__parse.rich(window.state.text).then(t => { window.state.tree=t; }).catch(()=>{});
+
+  window.__bindShortcuts({
+    onNext: (dir) => {
+      const chips = document.querySelectorAll('#controlbar .pb');
+      const cur = Array.from(chips).findIndex(c => c.classList.contains('on'));
+      const n = chips.length;
+      const next = (cur + dir + n) % n;
+      chips[next].click();
+    },
+    onJump: (idx) => {
+      const chips = document.querySelectorAll('#controlbar .pb');
+      if (chips[idx]) chips[idx].click();
+    },
+    textInput,
+  });
+  window.__bindExport(canvas);
+
+  function tick(ts){
+    if(window.__motionPaused){ requestAnimationFrame(tick); return; }
+    const fmt = window.FORMATS[window.state.format];
+    const layout = phil.layout(window.state.tree, fmt, window.state.controls);
+    phil.render(ctx, layout, ts, window.state.controls, window.state.tree);
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+});
+</script>
 </body>
 </html>

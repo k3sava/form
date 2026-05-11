@@ -23,8 +23,8 @@
 
 <div class="ov" id="splash" role="dialog" aria-modal="true" aria-labelledby="spl-title">
   <div class="spl-inner">
-    <div class="spl-title" id="spl-title">SWISS</div>
-    <div class="spl-desc">a Müller-Brockmann grid · part of FORM</div>
+    <div class="spl-title" id="spl-title">FORM</div>
+    <div class="spl-desc">a typography lab</div>
     <div class="sgrid sck">
       <div class="srow"><span class="skey">Type</span><span class="sdsc">edit phrase</span></div>
       <div class="srow"><span class="skey">1–5</span><span class="sdsc">switch philosophy</span></div>
@@ -134,11 +134,16 @@ window.addEventListener('load', function(){
     canvas.setAttribute('aria-label', 'FORM '+phil.name+' poster: "'+window.state.text+'"');
   }
   textInput.addEventListener('input', () => {
-    window.state.text = textInput.value.trim() || 'LESS. BETTER.';
-    window.state.tree = window.__parse.basic(window.state.text);
+    const v = textInput.value.trim() || 'LESS. BETTER.';
+    window.state.text = v;
+    window.state.tree = window.__parse.basic(v);
+    window.__saveSharedText(textInput.value);
     updateAria();
   });
-  window.state.text = textInput.value;
+  // Load shared phrase from sessionStorage (or use the default)
+  const loaded = window.__loadSharedText(textInput.value);
+  textInput.value = loaded;
+  window.state.text = loaded;
   window.state.tree = window.__parse.basic(window.state.text);
   updateAria();
   window.__parse.rich(window.state.text).then(t => { window.state.tree=t; }).catch(()=>{});
