@@ -4,16 +4,33 @@
 
 'use strict';
 
-// Theme — runs early to avoid flash
+// Theme — reads localStorage.theme (same key as toys.iamkesava.com),
+// applies via data-theme attribute. Themes: default | brutalist | editorial | terminal | zen.
+// Runs early to avoid flash; rebinds on storage events so other tabs stay in sync.
 (function(){
+  var THEMES=['default','brutalist','editorial','terminal','zen'];
+  function apply(t){
+    var html=document.documentElement;
+    if(t==='default'||!t){ html.removeAttribute('data-theme'); }
+    else{ html.setAttribute('data-theme',t); }
+  }
   try{
-    var saved=localStorage.getItem('form-theme');
-    var mode=saved||(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');
-    if(mode==='light'){
-      document.documentElement.setAttribute('data-theme','light');
-      var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content','#f5f3ee');
-    }
+    var saved=localStorage.getItem('theme');
+    apply(THEMES.indexOf(saved)>=0?saved:'default');
   }catch(e){}
+  window.addEventListener('storage',function(e){
+    if(e.key==='theme')apply(e.newValue||'default');
+  });
+  window.__themes=THEMES;
+  window.__cycleTheme=function(){
+    var cur='default';
+    try{ cur=localStorage.getItem('theme')||'default'; }catch(e){}
+    var idx=THEMES.indexOf(cur); if(idx<0)idx=0;
+    var next=THEMES[(idx+1)%THEMES.length];
+    apply(next);
+    try{ localStorage.setItem('theme',next); }catch(e){}
+    return next;
+  };
 })();
 
 // FORMATS
@@ -85,25 +102,32 @@ window.state={
   window.__splash={open,dismiss};
 })();
 
-// Theme toggle + help
+// Theme cycle button + help button
 (function(){
   const btn=document.getElementById('btn-theme');
-  if(!btn)return;
-  const meta=document.querySelector('meta[name="theme-color"]');
-  function apply(mode){
-    if(mode==='light'){
-      document.documentElement.setAttribute('data-theme','light');
-      if(meta)meta.setAttribute('content','#f5f3ee');
-    }else{
-      document.documentElement.removeAttribute('data-theme');
-      if(meta)meta.setAttribute('content','#0a0a0a');
+  if(btn){
+    // Render the current theme glyph inside the button for visual feedback
+    const GLYPHS={default:'○',brutalist:'■',editorial:'¶',terminal:'>',zen:'◯'};
+    const span=document.createElement('span');
+    span.className='tb-theme-glyph';
+    function refresh(){
+      let cur='default';
+      try{ cur=localStorage.getItem('theme')||'default'; }catch(e){}
+      if(!GLYPHS[cur])cur='default';
+      span.textContent=GLYPHS[cur];
+      btn.setAttribute('aria-label','Theme: '+cur+' (T to cycle)');
+      btn.setAttribute('title','Theme: '+cur);
     }
+    // Replace btn children with our glyph + kbd hint
+    btn.innerHTML='';
+    btn.appendChild(span);
+    const kbd=document.createElement('span');
+    kbd.className='kbk'; kbd.textContent='T';
+    btn.appendChild(kbd);
+    refresh();
+    btn.onclick=()=>{ window.__cycleTheme(); refresh(); };
+    window.addEventListener('storage',(e)=>{ if(e.key==='theme')refresh(); });
   }
-  btn.onclick=()=>{
-    const next=document.documentElement.getAttribute('data-theme')==='light'?'dark':'light';
-    apply(next);
-    try{localStorage.setItem('form-theme',next);}catch(e){}
-  };
   const help=document.getElementById('btn-help');
   if(help)help.onclick=()=>window.__splash&&window.__splash.open();
 })();
