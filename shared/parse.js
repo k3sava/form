@@ -152,8 +152,165 @@ async function richParse(text){
   return tree;
 }
 
+// Words that typically open a phrase — break BEFORE these is a natural pause.
+// Conjunctions, subordinators, prepositions, relative pronouns.
+const BREAK_BEFORE=new Set([
+  'and','or','but','so','yet','nor',
+  'while','because','although','though','if','then','when','where','until','since','unless','whenever','wherever',
+  'that','who','whom','whose','which',
+  'to','of','in','on','at','for','by','with','from','into','through','after','before','about','against','between','during','above','below','toward','towards','like','as','than',
+  'is','was','are','were','be','been','being','will','would','could','should','may','might','must',
+  'a','an','the',
+]);
+
+// Score the priority of breaking BEFORE a given word. 0..100.
+// 100 = forced (e.g., after sentence-ending punctuation, already handled as beat boundaries).
+function breakScoreBefore(word, prev){
+  const w = (word||'').replace(/[^a-zA-Z0-9]/g,'').toLowerCase();
+  if(!w) return 50;
+  // Strong: subordinators / conjunctions / "to + verb" infinitive
+  if(['and','but','or','so','yet','because','while','although','though','if','that','which','who'].includes(w)) return 80;
+  // Medium-strong: prepositions and relative markers
+  if(['to','of','in','on','at','for','by','with','from','into','through','after','before','about','against','between','during','toward','towards','like','as','than'].includes(w)) return 65;
+  // Medium: articles + auxiliaries (open a noun-phrase or verb-phrase)
+  if(['a','an','the','is','was','are','were','be','will','would','could','should','may','might','must','have','has','had'].includes(w)) return 45;
+  // Low: any stop-word as previous word means the connection is tight (don't break)
+  // Otherwise default mid-low
+  return 20;
+}
+
+// Antonym/contrast pairs. When BOTH appear in a phrase, the typographic
+// move is to make them visually fight — both get scale, the latter usually larger (payoff).
+// Directionless pairs: if BOTH appear in a phrase, the one appearing LATER is the payoff.
+const CONTRAST_PAIRS=[
+  ['less','more'],
+  ['small','big'], ['little','large'],
+  ['old','new'],
+  ['cold','hot'], ['warm','cool'],
+  ['before','after'], ['past','future'], ['then','now'], ['was','is'], ['were','are'],
+  ['light','dark'], ['day','night'],
+  ['slow','fast'], ['quick','slow'],
+  ['empty','full'],
+  ['low','high'], ['short','tall'],
+  ['soft','loud'], ['quiet','loud'],
+  ['begin','end'], ['start','stop'],
+  ['nothing','everything'], ['none','all'], ['some','many'],
+  ['near','far'],
+  ['weak','strong'],
+  ['lose','win'],
+  ['hard','easy'],
+  ['black','white'],
+  ['yes','no'],
+];
+
+// Imperatives and action verbs that signal monumental intent.
+const ACTION_VERBS=new Set(['go','do','run','jump','make','build','create','stop','breathe','rise','fall','sing','dance','wake','sleep','dream','fly','dive','rest','move','wait','listen','look','see','find','seek','reach','touch','hold','let','try','begin','end','remember','forget']);
+
+// Annotate the parse tree with typographic intent. Walks all tokens, sets:
+//   token.intentScale  — relative size multiplier (1.0 = base)
+//   token.intentRole   — 'payoff' | 'antonym-a' | 'antonym-b' | 'imperative' | 'time' | null
+// Mutates the tree in place and also returns it.
+function detectIntent(tree){
+  if(!tree || !tree.beats) return tree;
+  const allTokens=[];
+  tree.beats.forEach(b=>{
+    if(!b.tokens) b.tokens = b.words.map(w=>({w, emphasis:0.5, isStop:false}));
+    b.tokens.forEach(t=>{
+      t.intentScale = 1.0;
+      t.intentRole = null;
+      allTokens.push(t);
+    });
+  });
+  if(!allTokens.length) return tree;
+  const lc = allTokens.map(t=>(t.w||'').replace(/[^a-zA-Z]/g,'').toLowerCase());
+
+  // 1. CONTRAST pairs. Both words present in any order → the LATER one is the payoff.
+  let contrastHit = false;
+  CONTRAST_PAIRS.forEach(([a, b])=>{
+    const ia = lc.indexOf(a), ib = lc.indexOf(b);
+    if(ia >= 0 && ib >= 0 && ia !== ib){
+      contrastHit = true;
+      const firstIdx = Math.min(ia, ib);
+      const secondIdx = Math.max(ia, ib);
+      // Setup word — visible but distinctly smaller than the payoff
+      if(allTokens[firstIdx].intentScale < 1.2)allTokens[firstIdx].intentScale = 0.7;
+      allTokens[firstIdx].intentRole = allTokens[firstIdx].intentRole || 'antonym-setup';
+      // Payoff word — monumental
+      allTokens[secondIdx].intentScale = Math.max(allTokens[secondIdx].intentScale, 2.2);
+      allTokens[secondIdx].intentRole = 'antonym-payoff';
+    }
+  });
+
+  // 2. IMPERATIVE / ACTION verb at sentence start → monumental.
+  if(allTokens[0]){
+    const first = lc[0];
+    if(ACTION_VERBS.has(first)){
+      allTokens[0].intentScale = Math.max(allTokens[0].intentScale, 1.9);
+      allTokens[0].intentRole = allTokens[0].intentRole || 'imperative';
+    }
+  }
+
+  // 3. EXCLAMATION (! anywhere) — final content word gets heavy.
+  if(tree.tone === 'exclaim'){
+    const lastContent = [...allTokens].reverse().find(t=>!t.isStop);
+    if(lastContent){
+      lastContent.intentScale = Math.max(lastContent.intentScale, 1.8);
+      lastContent.intentRole = lastContent.intentRole || 'payoff';
+    }
+  }
+
+  // 4. QUESTION — the question word ("why", "what", "how", etc.) gets scale.
+  if(tree.tone === 'question'){
+    const qWords = new Set(['why','what','how','when','where','who','which','whose']);
+    const qIdx = lc.findIndex(w=>qWords.has(w));
+    if(qIdx >= 0){
+      allTokens[qIdx].intentScale = Math.max(allTokens[qIdx].intentScale, 1.7);
+      allTokens[qIdx].intentRole = allTokens[qIdx].intentRole || 'question';
+    }
+  }
+
+  // 5. TIME markers — "now", "tomorrow", "today", "yesterday", "never", "always".
+  const TIME = new Set(['now','today','tomorrow','yesterday','never','always','forever','tonight']);
+  lc.forEach((w, i)=>{
+    if(TIME.has(w)){
+      allTokens[i].intentScale = Math.max(allTokens[i].intentScale, 1.5);
+      allTokens[i].intentRole = allTokens[i].intentRole || 'time';
+    }
+  });
+
+  // 6. PAYOFF fallback — last content word; ties to later occurrence.
+  if(!contrastHit && tree.tone !== 'exclaim' && tree.tone !== 'question'){
+    let best = -1, bestLen = 0;
+    allTokens.forEach((t, i)=>{
+      if(t.isStop) return;
+      const len = (t.w||'').length;
+      // Prefer later occurrence on equal length — typographer reads to the end and lands there.
+      if(len >= bestLen){ bestLen = len; best = i; }
+    });
+    if(best >= 0 && allTokens[best].intentScale === 1.0){
+      allTokens[best].intentScale = 1.45;
+      allTokens[best].intentRole = 'payoff';
+    }
+  }
+
+  return tree;
+}
+
+// Re-wrap basicParse to detect intent.
+const _basicParse = basicParse;
+basicParse = function(text){
+  const tree = _basicParse(text);
+  return detectIntent(tree);
+};
+
 window.__parse={
   basic: basicParse,
   rich: richParse,
   load: loadNLP,
+  breakScoreBefore,
+  detectIntent,
+  CONTRAST_PAIRS,
+  ACTION_VERBS,
+  STOPWORDS,
+  BREAK_BEFORE,
 };

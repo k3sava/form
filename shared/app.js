@@ -249,6 +249,79 @@ window.__bindExport=function(canvas){
   };
 };
 
+// Curated test phrases — used to QA each philosophy across length / structure / intent.
+window.__PHRASES = [
+  { tag:'short · imperative',  text:'go!' },
+  { tag:'short · question',    text:'why?' },
+  { tag:'short · contrast',    text:'less is more' },
+  { tag:'short · payoff',      text:'stronger together' },
+  { tag:'short · fragment',    text:'never give up' },
+  { tag:'short · brand',       text:'just do it' },
+  { tag:'medium · single',     text:'the future is now' },
+  { tag:'medium · contrast',   text:'before sunrise. after sunset.' },
+  { tag:'medium · list',       text:'breathe. listen. begin.' },
+  { tag:'medium · irony',      text:'fast and slow are both wrong' },
+  { tag:'medium · imperative', text:'fall in love with the process' },
+  { tag:'medium · question',   text:'what would you do if you knew?' },
+  { tag:'long · proverb',      text:'the best time to plant a tree was twenty years ago. the second best time is now.' },
+  { tag:'long · contrast',     text:'old habits die hard. new ones are born from quiet rebellion.' },
+  { tag:'long · gravity',      text:'we are stardust. we are golden. and we have got to get ourselves back to the garden.' },
+  { tag:'long · sales',        text:'good design is honest. great design is invisible. perfect design has already left the room.' },
+  { tag:'lyric · simple',      text:'every little thing is gonna be alright' },
+  { tag:'lyric · headline',    text:'silence is louder than words' },
+  { tag:'lyric · ode',         text:'i carry your heart with me. i carry it in my heart.' },
+];
+window.__phraseIdx = -1;
+
+// Inject a phrase-preset cycler row at the top of the drawer.
+window.__renderPhraseDeck = function(){
+  const drawer = document.getElementById('drawer');
+  if(!drawer || document.getElementById('fp-phrase-deck')) return;
+  const textInput = document.getElementById('text-input');
+
+  const deck = document.createElement('div');
+  deck.id = 'fp-phrase-deck';
+  deck.className = 'fp-row fp-select';
+  deck.innerHTML =
+    '<span class="fp-lbl">PRESET</span>'+
+    '<button class="fp-sel-prev" aria-label="prev">◀</button>'+
+    '<span class="fp-sel-val" id="fp-deck-name">custom</span>'+
+    '<button class="fp-sel-next" aria-label="next">▶</button>';
+  drawer.insertBefore(deck, drawer.firstChild);
+
+  function setPreset(i){
+    window.__phraseIdx = i;
+    const p = window.__PHRASES[i]; if(!p) return;
+    document.getElementById('fp-deck-name').textContent = p.tag;
+    if(textInput){
+      textInput.value = p.text;
+      textInput.dispatchEvent(new Event('input', {bubbles:true}));
+    }
+  }
+  function cycle(dir){
+    const n = window.__PHRASES.length;
+    const next = (window.__phraseIdx < 0) ? (dir>0?0:n-1) : (window.__phraseIdx + dir + n) % n;
+    setPreset(next);
+  }
+  deck.querySelector('.fp-sel-prev').onclick = ()=>cycle(-1);
+  deck.querySelector('.fp-sel-next').onclick = ()=>cycle(1);
+
+  function matchCurrent(){
+    if(!textInput) return;
+    const v = (textInput.value||'').trim().toLowerCase();
+    const hit = window.__PHRASES.findIndex(p => p.text.toLowerCase() === v);
+    if(hit >= 0){
+      window.__phraseIdx = hit;
+      document.getElementById('fp-deck-name').textContent = window.__PHRASES[hit].tag;
+    } else {
+      window.__phraseIdx = -1;
+      document.getElementById('fp-deck-name').textContent = 'custom';
+    }
+  }
+  if(textInput) textInput.addEventListener('input', matchCurrent);
+  matchCurrent(); // initial sync
+};
+
 // Shared text persistence (sessionStorage)
 window.__loadSharedText=function(defaultText){
   try{

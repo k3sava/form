@@ -51,6 +51,57 @@ function roundRect(ctx, x, y, w, h, r){
   ctx.closePath();
 }
 
+// Phrase-aware line break. Dynamic programming over word indices.
+// Cost = sum of (rag_imbalance)^2 + (1 / max(breakScore, 1)) * penalty.
+// Prefers breaks at high-score points; secondarily balances line widths.
+function phraseLineBreak(wordWidths, breakAfter, maxLineCells, interWord){
+  const N = wordWidths.length;
+  // memo[i] = { cost, breaks (list of word indexes BEFORE which line breaks, ending list of arrays of word indices) }
+  // Each "line" is a contiguous wordIdx range.
+  const memo = new Array(N+1);
+  memo[N] = { cost: 0, lines: [] };
+
+  // For each starting index i, find best line: try each ending j (inclusive), test fit, recurse.
+  for(let i = N-1; i >= 0; i--){
+    let bestCost = Infinity;
+    let bestLine = null;
+    let bestRest = null;
+    let lineW = 0;
+    for(let j = i; j < N; j++){
+      lineW += (j===i ? 0 : interWord) + wordWidths[j];
+      if(lineW > maxLineCells && j > i) break; // doesn't fit (i==j: single word over-width — accept anyway)
+      // Last line gets no rag penalty. Others get penalized for being narrow.
+      const isLast = (j === N-1);
+      const fillRatio = lineW / maxLineCells; // 0..1
+      const ragCost = isLast ? 0 : Math.pow(1 - fillRatio, 2) * 100;
+      // Break-after score: at word j, the break-after[j] tells how natural the next break is.
+      // Higher score = lower penalty. Skip on the final line (no break needed).
+      const breakSc = isLast ? 100 : breakAfter[j];
+      const breakPenalty = isLast ? 0 : (100 - breakSc) * 1.5;
+      const restCost = isLast ? 0 : memo[j+1].cost;
+      const totalCost = ragCost + breakPenalty + restCost;
+      if(totalCost < bestCost){
+        bestCost = totalCost;
+        bestLine = [i, j];
+        bestRest = isLast ? [] : memo[j+1].lines;
+      }
+    }
+    if(!bestLine){
+      bestLine = [i, i];
+      bestRest = memo[i+1] ? memo[i+1].lines : [];
+      bestCost = Infinity;
+    }
+    memo[i] = { cost: bestCost, lines: [bestLine].concat(bestRest) };
+  }
+
+  // Convert [start, end] pairs into arrays of word indices per line
+  return memo[0].lines.map(([a, b]) => {
+    const arr = [];
+    for(let k=a;k<=b;k++) arr.push(k);
+    return arr;
+  });
+}
+
 const VOICES = {
   block:   '900 {SIZE}px "Helvetica Neue", Helvetica, "Arial Black", sans-serif',
   serif:   '900 {SIZE}px Georgia, "Times New Roman", serif',
@@ -88,59 +139,113 @@ window.FORM_PHILOSOPHY = {
     let phrase = beats.map(b=>b.text).join('  ');
     if(!phrase) phrase = 'FORM';
     phrase = phrase.toUpperCase();
-    const chars = [];
-    for(let i=0;i<phrase.length;i++){
-      const ch = phrase[i];
-      if(ch===' ') chars.push({char:' ', space:true, w:cols*0.5});
-      else chars.push({char:ch, space:false, w:cols});
+    // Tokenise into WORDS preserving beat boundaries + carrying intent metadata.
+    // Each word's intentScale modulates its physical cell-size on the canvas.
+    const wordObjs = [];
+    (tree && tree.beats || []).forEach((beat, bi)=>{
+      const tokens = (beat.tokens && beat.tokens.length) ? beat.tokens : beat.words.map(w=>({w}));
+      tokens.forEach((tok, ti)=>{
+        const upperWord = (tok.w||'').toUpperCase();
+        wordObjs.push({
+          chars: upperWord.split(''),
+          word: upperWord.toLowerCase(),
+          beatIndex: bi,
+          isBeatStart: ti===0,
+          isBeatEnd: ti===tokens.length-1,
+          intentScale: tok.intentScale || 1.0,
+          intentRole:  tok.intentRole  || null,
+        });
+      });
+    });
+    if(!wordObjs.length){
+      const fallback = (phrase||'FORM').split(/\s+/).filter(Boolean);
+      fallback.forEach((w,i)=>wordObjs.push({chars:w.toUpperCase().split(''), word:w.toLowerCase(), beatIndex:0, isBeatStart:i===0, isBeatEnd:i===fallback.length-1, intentScale:1.0, intentRole:null}));
     }
+    if(!wordObjs.length) return { glyphs:[], cellSize:2, rows, cols };
+
+    // Each word's "footprint" in cells = chars * cols * intentScale.
+    // Inter-word gap stays at cols*0.6.
+    const interWord = cols * 0.6;
+    const wordWidths = wordObjs.map(w => w.chars.length * cols * w.intentScale);
+    // Each word's vertical footprint in cells = rows * intentScale.
+    const wordHeights = wordObjs.map(w => rows * w.intentScale);
+
+    // Break-score AFTER word i. Higher = stronger preference to break here.
+    // - 100 after beat-end (post-punctuation): forced
+    // - high score if next word is a conjunction / preposition
+    // - low score otherwise
+    const breakAfter = wordObjs.map((w, i)=>{
+      if(i === wordObjs.length-1) return 0;
+      if(w.isBeatEnd) return 100;
+      const nextWord = wordObjs[i+1].word;
+      const breakSc = window.__parse && window.__parse.breakScoreBefore
+        ? window.__parse.breakScoreBefore(nextWord, w.word) : 20;
+      return breakSc;
+    });
+
     const targetW = W*0.92, targetH = H*0.88;
 
-    // Find largest cellSize that fits the phrase via greedy word-wrap
-    let cellSize = 2, lines = [chars];
-    const maxTry = Math.floor(targetW/Math.max(cols,1));
+    // Find the largest base cellSize that lets:
+    //  - each word fit on its line (no single word over-width)
+    //  - the phrase wraps with phrase-aware line breaks
+    //  - total vertical fits the canvas
+    // Note: word widths and heights are already scaled by intentScale, so the largest-intent
+    // word effectively decides the bound.
+    let cellSize = 2;
+    let lines = null;
+    const maxTry = Math.floor(targetW / Math.max(cols,1));
     for(let trySize = maxTry; trySize >= 2; trySize--){
       const maxLineCells = targetW / trySize;
-      const cand = [];
-      let line=[], lineW=0;
-      for(let i=0;i<chars.length;i++){
-        const c=chars[i];
-        const proposed = lineW + (line.length?gapCells:0) + c.w;
-        if(proposed > maxLineCells && line.length){
-          cand.push(line); line=[]; lineW=0;
-          if(c.space) continue;
-        }
-        line.push(c);
-        lineW += (line.length>1?gapCells:0) + c.w;
-      }
-      if(line.length) cand.push(line);
-      const lineHeightCells = rows + gapCells*0.8;
-      const totalH = cand.length * lineHeightCells * trySize;
+      if(wordWidths.some(w => w > maxLineCells)){ continue; }
+      const cand = phraseLineBreak(wordWidths, breakAfter, maxLineCells, interWord);
+      // Per-line height = max wordHeight on that line + gap
+      const lineHeights = cand.map(lineIdxs=>{
+        const maxH = Math.max(...lineIdxs.map(wi => wordHeights[wi]));
+        return (maxH + gapCells*0.8);
+      });
+      const totalHCells = lineHeights.reduce((s,h)=>s+h, 0);
+      const totalH = totalHCells * trySize;
       if(totalH <= targetH){ cellSize = trySize; lines = cand; break; }
     }
+    if(!lines){
+      cellSize = 2; lines = [wordObjs.map((_,i)=>i)];
+    }
 
-    const lineHeightPx = (rows + gapCells*0.8) * cellSize;
-    const totalH = lines.length * lineHeightPx;
-    const yStart = (H - totalH)/2;
+    // Compute per-line heights in pixels and total
+    const linePxH = lines.map(lineIdxs=>{
+      const maxH = Math.max(...lineIdxs.map(wi => wordHeights[wi]));
+      return (maxH + gapCells*0.8) * cellSize;
+    });
+    const totalHpx = linePxH.reduce((s,h)=>s+h, 0);
+    const yStart = (H - totalHpx) / 2;
 
     const placed = [];
-    lines.forEach((lineChars, li)=>{
+    let yCursor = yStart;
+    lines.forEach((wordIdxs, li)=>{
+      const lineHpx = linePxH[li];
+      // Line width in pixels (sum word widths × their intentScale × cellSize + inter-word gaps × cellSize)
       let lineWpx = 0;
-      lineChars.forEach((c,i)=>{
-        lineWpx += c.w*cellSize;
-        if(i<lineChars.length-1) lineWpx += gapCells*cellSize;
+      wordIdxs.forEach((wi, i)=>{
+        lineWpx += wordWidths[wi] * cellSize;
+        if(i < wordIdxs.length-1) lineWpx += interWord * cellSize;
       });
-      const xStart = (W - lineWpx)/2;
+      const xStart = (W - lineWpx) / 2;
       let cursorX = xStart;
-      const yLine = yStart + li*lineHeightPx;
-      lineChars.forEach((c,i)=>{
-        if(!c.space){
-          const map = sampleGlyph(c.char, rows, cols, fontSpec);
-          placed.push({char:c.char, map, x:cursorX, y:yLine});
-        }
-        cursorX += c.w*cellSize;
-        if(i<lineChars.length-1) cursorX += gapCells*cellSize;
+      wordIdxs.forEach((wi, i)=>{
+        const wObj = wordObjs[wi];
+        // Local cell size for THIS word — scaled by intent.
+        const localCell = cellSize * wObj.intentScale;
+        const wordPxH = rows * localCell;
+        // Vertical-align word inside the line's baseline (bottom-aligned so different scales sit on a shared baseline)
+        const yBase = yCursor + lineHpx - (gapCells*0.8 * cellSize) - wordPxH;
+        wObj.chars.forEach(ch=>{
+          const map = sampleGlyph(ch, rows, cols, fontSpec);
+          placed.push({ char:ch, map, x:cursorX, y:yBase, cell:localCell, role:wObj.intentRole });
+          cursorX += cols * localCell;
+        });
+        if(i < wordIdxs.length-1) cursorX += interWord * cellSize;
       });
+      yCursor += lineHpx;
     });
     return { glyphs:placed, cellSize, rows, cols };
   },
@@ -158,35 +263,39 @@ window.FORM_PHILOSOPHY = {
       ctx.strokeStyle = inverted?'rgba(255,255,255,.10)':'rgba(0,0,0,.10)';
       ctx.lineWidth = 1;
       glyphs.forEach(g=>{
+        const c = g.cell || cellSize;
         for(let y=0;y<=rows;y++){
           ctx.beginPath();
-          ctx.moveTo(g.x, g.y + y*cellSize);
-          ctx.lineTo(g.x + cols*cellSize, g.y + y*cellSize);
+          ctx.moveTo(g.x, g.y + y*c);
+          ctx.lineTo(g.x + cols*c, g.y + y*c);
           ctx.stroke();
         }
         for(let x=0;x<=cols;x++){
           ctx.beginPath();
-          ctx.moveTo(g.x + x*cellSize, g.y);
-          ctx.lineTo(g.x + x*cellSize, g.y + rows*cellSize);
+          ctx.moveTo(g.x + x*c, g.y);
+          ctx.lineTo(g.x + x*c, g.y + rows*c);
           ctx.stroke();
         }
       });
     }
 
-    const threshold = params.threshold;
+    // When Animate is on (t > 0), threshold breathes ±0.09.
+    const breathing = t > 0 ? Math.sin(t * 0.0009) * 0.09 : 0;
+    const threshold = Math.max(0.02, Math.min(0.85, params.threshold + breathing));
     const strokeF = params.stroke;
-    const r = params.smooth * 0.5 * cellSize * strokeF;
     const shape = params.shape;
     ctx.fillStyle = fg;
 
     glyphs.forEach(g=>{
+      const c = g.cell || cellSize;
+      const r = params.smooth * 0.5 * c * strokeF;
       for(let y=0;y<rows;y++){
         for(let x=0;x<cols;x++){
           const v = g.map[y][x];
           if(v < threshold) continue;
-          const cx = g.x + (x+0.5)*cellSize;
-          const cy = g.y + (y+0.5)*cellSize;
-          const sz = cellSize * strokeF;
+          const cx = g.x + (x+0.5)*c;
+          const cy = g.y + (y+0.5)*c;
+          const sz = c * strokeF;
           drawShape(ctx, shape, cx, cy, sz, r);
         }
       }
