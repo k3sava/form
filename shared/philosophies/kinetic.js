@@ -1,92 +1,129 @@
-// shared/philosophies/kinetic.js — variable-font choreography
+// shared/philosophies/kinetic.js — KINETIC
+// Operation: variable-font choreography. Each glyph's wght axis is a phase
+// function of (cycle position + glyph index × spread). Setup words oscillate
+// in a narrow band; payoff words oscillate wide. Block-justified lines. The
+// loop closes exactly at CYCLE_MS — one full wave traversal across the phrase.
+// Inspired by Joyce, LettError, Dinamo, Yanone (variable-font practice).
+
 'use strict';
 
-// Inter Variable is loaded by the page's <link> tag.
+(function(){
+const measureCanvas = document.createElement('canvas');
+const measure = measureCanvas.getContext('2d');
+const measureCache = new Map();
+function specFor(weight, sizePx){
+  return `${weight|0} ${Math.max(1,sizePx|0)}px "Inter","InterVariable","Inter Variable","Helvetica Neue",Helvetica,sans-serif`;
+}
+// Width depends only weakly on wght for Inter Variable — measure at the
+// midpoint weight to keep layout stable while glyphs animate.
+function measureText(text, sizePx){
+  const key = text + '|' + sizePx;
+  if(measureCache.has(key)) return measureCache.get(key);
+  measure.font = specFor(550, sizePx);
+  const w = measure.measureText(text).width;
+  measureCache.set(key, w);
+  if(measureCache.size > 2000){ measureCache.delete(measureCache.keys().next().value); }
+  return w;
+}
 
-window.FORM_PHILOSOPHY={
+window.FORM_PHILOSOPHY = {
   id:'kinetic',
   name:'Kinetic',
-  palette:{
-    bg:    '#0d0d10',
-    fg:    '#f4f3f0',
-    accent:'#26ff9d',
-    dim:   '#5a5a60',
-  },
+  palette:{ bg:'#0d0d10', fg:'#f4f3f0', accent:'#26ff9d', dim:'#5a5a60' },
   controls:[
-    {key:'amp',   label:'AMPLITUDE',min:0,    max:1,    def:0.7, step:0.02, fmt:v=>v.toFixed(2)},
-    {key:'rate',  label:'RATE',     min:0.1,  max:2.5,  def:0.8, step:0.05, fmt:v=>v.toFixed(2)},
-    {key:'spread',label:'SPREAD',   min:0,    max:1,    def:0.5, step:0.02, fmt:v=>v.toFixed(2)},
+    {key:'amp',     label:'AMPLITUDE', type:'slider', min:0,   max:1,    def:0.7, step:0.02, fmt:v=>v.toFixed(2)},
+    {key:'spread',  label:'SPREAD',    type:'slider', min:0,   max:1,    def:0.5, step:0.02, fmt:v=>v.toFixed(2)},
+    {key:'wobble',  label:'WOBBLE',    type:'slider', min:0,   max:1,    def:0.25,step:0.02, fmt:v=>v.toFixed(2)},
+    {key:'baseWt',  label:'BASE WGHT', type:'slider', min:200, max:800,  def:500, step:25,   fmt:v=>`${v|0}`},
+    {key:'harmonic',label:'HARMONIC',  type:'slider', min:1,   max:4,    def:1,   step:1,    fmt:v=>`${v|0}`},
+    {key:'highlight',label:'HIGHLIGHT', type:'check', def:true, fmt:v=>v?'on':'off'},
   ],
-  defaults:{amp:0.7, rate:0.8, spread:0.5},
+  defaults:{amp:0.7, spread:0.5, wobble:0.25, baseWt:500, harmonic:1, highlight:true},
 
   layout(tree, format, params){
-    const W=format.w, H=format.h;
-    const marginX=Math.round(W*0.06), marginY=Math.round(H*0.10);
-    const usableW=W-marginX*2, usableH=H-marginY*2;
-    if(tree.beats.length===0)return {lines:[]};
+    const W = format.w, H = format.h;
+    const marginX = Math.round(W*0.06), marginY = Math.round(H*0.10);
+    const targetW = W - marginX*2;
+    const targetH = H - marginY*2;
 
-    // Treat the whole phrase as one line of glyphs, broken naturally on beat boundaries.
-    // Each line carries an array of {char, beatIndex, isSpace}.
-    const lines=[];
-    const charLines=[];
-    let curLine=[];
-    tree.beats.forEach((b,bi)=>{
-      // Add a soft break between beats with a wide non-glyph element
-      if(curLine.length){ curLine.push({char:' ',space:true,beatIndex:bi-1}); curLine.push({char:' ',space:true,beatIndex:bi-1}); }
-      for(let i=0;i<b.text.length;i++){
-        curLine.push({char:b.text[i], space:b.text[i]===' ', beatIndex:bi});
+    const widthOf  = (w, intentScale, unit) => measureText(w.w, unit * intentScale);
+    const heightOf = (intentScale, unit) => unit * intentScale * 0.78;
+
+    const box = window.__formLayout.phraseBoxes(tree, {
+      widthOf, heightOf,
+      interWordRatio: 0.34,
+      lineGapRatio: 0.20,
+      targetW, targetH,
+      minUnit: 18, maxUnit: Math.round(H*0.50),
+      maxBlockScale: 2.4,
+      alignX: 'center',
+      cx: W/2, cy: H/2,
+    });
+
+    // Pre-compute per-glyph metadata: pixel x positions and per-glyph phase offset.
+    const glyphs = [];
+    let glyphCounter = 0;
+    box.boxes.forEach(b=>{
+      const fs = b.unitPx;
+      let cx = b.x;
+      for(let i=0; i<b.word.length; i++){
+        const ch = b.word[i];
+        const wPx = measureText(ch, fs);
+        glyphs.push({
+          ch, x: cx, baselineY: b.baselineY, fontSize: fs,
+          intentScale: b.intentScale,
+          intentRole: b.intentRole,
+          isStop: b.wordObj.isStop,
+          orderIndex: glyphCounter++,
+        });
+        cx += wPx;
       }
     });
-    charLines.push(curLine);
-
-    // Compute base font size to fit chars on one line
-    const totalChars=charLines[0].length||1;
-    let fontSize=Math.min(usableH*0.4, usableW/(totalChars*0.62));
-    const baseY=Math.round(marginY+usableH*0.55);
-
-    return {chars: charLines[0], fontSize, baseY, marginX, totalChars, usableW};
+    return { ...box, glyphs, W, H };
   },
 
   render(ctx, layout, t, params, tree){
-    const W=ctx.canvas.width, H=ctx.canvas.height;
+    const W = ctx.canvas.width, H = ctx.canvas.height;
+    ctx.fillStyle = this.palette.bg; ctx.fillRect(0,0,W,H);
+    if(!layout.glyphs || !layout.glyphs.length) return;
 
-    ctx.fillStyle=this.palette.bg;
-    ctx.fillRect(0,0,W,H);
+    const CYCLE = window.CYCLE_MS || 15000;
+    const phase = t > 0 ? (t % CYCLE) / CYCLE : 0;
+    const N = layout.glyphs.length;
+    const baseWt = params.baseWt|0;
+    const harmonic = Math.max(1, params.harmonic|0);
+    const ampG = params.amp;
+    const spread = params.spread;
+    const wobble = params.wobble;
+    const highlight = !!params.highlight;
 
-    if(!layout.chars||layout.chars.length===0)return;
+    layout.glyphs.forEach((g, i)=>{
+      // glyph phase = cycle position - i × spread / N (wave propagates left→right).
+      // Integer harmonic keeps the loop closed.
+      const idxPhase = (i / Math.max(1, N)) * spread;
+      const local = ((phase - idxPhase) % 1 + 1) % 1; // 0..1
+      const wave = Math.sin(local * Math.PI * 2 * harmonic);
+      // Payoff glyphs oscillate wider; setup narrower.
+      const isPayoff = ['antonym-payoff','time-payoff','payoff','imperative','question'].includes(g.intentRole);
+      const isSetup  = g.intentRole === 'antonym-setup' || g.intentRole === 'setup-cohesion' || g.isStop;
+      const range = isPayoff ? 380 : (isSetup ? 120 : 240);
+      const wt = Math.max(100, Math.min(900, Math.round(baseWt + wave * range * ampG)));
+      const wobbleY = wave * g.fontSize * 0.045 * wobble;
+      const color = (highlight && isPayoff) ? this.palette.accent : (isSetup ? this.palette.dim : this.palette.fg);
 
-    const fs=layout.fontSize;
-    const rate=params.rate;
-    const amp=params.amp;
-    const spread=params.spread;
-
-    // Pre-measure: lay out each glyph with its current weight axis applied
-    ctx.textBaseline='alphabetic';
-    ctx.textAlign='left';
-    let cursorX=layout.marginX;
-
-    // Compute total width with min weights to center the line
-    // To avoid double-measure (Canvas 2D's measureText is the bottleneck), just push from left.
-    layout.chars.forEach((c,i)=>{
-      // Per-glyph wght oscillates 200..900 over time with phase offset
-      const phase=(i*spread*0.4) + t*0.001*rate;
-      const wght=Math.round(200 + (700)*amp*(Math.sin(phase)*0.5+0.5));
-      // Per-glyph baseline wobble (subtle)
-      const wobble=Math.sin(phase*1.3+i*0.1)*amp*fs*0.04;
-      const color=i===layout.chars.length-1?this.palette.accent:this.palette.fg;
-      ctx.font=`${wght} ${fs|0}px "Inter", "InterVariable", "Inter Variable", "Helvetica Neue", Helvetica, sans-serif`;
-      ctx.fillStyle=color;
-      ctx.fillText(c.char, cursorX, layout.baseY+wobble);
-      const w=ctx.measureText(c.char).width;
-      cursorX += w + (c.space?fs*0.04:0);
-      if(cursorX>W-layout.marginX*0.4)return; // soft clip
+      ctx.fillStyle = color;
+      ctx.font = specFor(wt, g.fontSize);
+      ctx.textBaseline = 'alphabetic';
+      ctx.textAlign = 'left';
+      ctx.fillText(g.ch, g.x, g.baselineY + wobbleY);
     });
   },
 
   motion:{ kind:'axes', intensity:0.7, rate:0.8 },
 };
 
-// Register for the Blend Lab (deduplicated by id)
 window.__formAllPhilosophies = (window.__formAllPhilosophies||[])
-  .filter(p=>p.id !== window.FORM_PHILOSOPHY.id)
+  .filter(p => p.id !== window.FORM_PHILOSOPHY.id)
   .concat([window.FORM_PHILOSOPHY]);
+
+})();
