@@ -987,14 +987,12 @@ requestAnimationFrame(tick);
 // ═══════════════════════════════════════════
 // EXPORT — PNG
 // ═══════════════════════════════════════════
-if(false){
-document.getElementById('export-btn').onclick=()=>{
+document.getElementById('btn-save').onclick=()=>{
   const a=document.createElement('a');
   a.download=`form-${state.format}-${EFFECTS[state.effect].name.toLowerCase()}.png`;
   a.href=canvas.toDataURL('image/png');
   a.click();
 };
-}
 
 // ═══════════════════════════════════════════
 // EXPORT — VIDEO (30-second WebM loop)
@@ -1003,8 +1001,7 @@ let recording=false;
 let mediaRec=null;
 let recChunks=[];
 
-if(false){
-document.getElementById('video-btn').onclick=function(){
+document.getElementById('btn-record').onclick=function(){
   if(recording)return;
   if(typeof MediaRecorder==='undefined'){
     alert('MediaRecorder not supported in this browser.');return;
@@ -1015,7 +1012,7 @@ document.getElementById('video-btn').onclick=function(){
   recording=true;recChunks=[];
 
   document.getElementById('rec-overlay').style.display='flex';
-  document.getElementById('video-btn').classList.add('rec-active');
+  document.getElementById('btn-record').classList.add('rec-active');
 
   const stream=canvas.captureStream(30);
   const mt=['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'].find(m=>MediaRecorder.isTypeSupported(m))||'';
@@ -1031,7 +1028,7 @@ document.getElementById('video-btn').onclick=function(){
     setTimeout(()=>URL.revokeObjectURL(url),2000);
     recording=false;
     document.getElementById('rec-overlay').style.display='none';
-    document.getElementById('video-btn').classList.remove('rec-active');
+    document.getElementById('btn-record').classList.remove('rec-active');
   };
   mediaRec.start(200);
 
@@ -1046,7 +1043,6 @@ document.getElementById('video-btn').onclick=function(){
 
   setTimeout(()=>{if(mediaRec&&mediaRec.state!=='inactive')mediaRec.stop();},30000);
 };
-}
 
 // ═══════════════════════════════════════════
 // SPLASH dismiss / replay
