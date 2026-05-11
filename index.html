@@ -870,7 +870,8 @@ const state={
 const canvas=document.getElementById('canvas');
 const ctx=canvas.getContext('2d',{willReadFrequently:true});
 const wrap=document.getElementById('canvas-wrap');
-// rewired in chrome rewrite tasks 5-10
+const textInput=document.getElementById('text-input');
+const paramRow=document.getElementById('param-row');
 
 const controlbar=document.getElementById('controlbar');
 EFFECTS.forEach((e,i)=>{
@@ -890,10 +891,21 @@ EFFECTS.forEach((e,i)=>{
 });
 
 function buildParams(){
-  // rewired in chrome rewrite task 8
-  return;
+  paramRow.innerHTML='';
+  const eff=EFFECTS[state.effect];
+  eff.params.forEach((p,i)=>{
+    const val=state.params[state.effect][p.key];
+    const div=document.createElement('div');div.className='param';
+    div.innerHTML=`<div class="param-header"><span class="param-label">${p.label}</span><span class="param-val" id="pv${i}">${p.fmt(val)}</span></div><input type="range" min="${p.min}" max="${p.max}" step="${p.step}" value="${val}" id="ps${i}">`;
+    paramRow.appendChild(div);
+    div.querySelector('input').oninput=function(){
+      const v=parseFloat(this.value);
+      state.params[state.effect][p.key]=v;
+      document.getElementById(`pv${i}`).textContent=p.fmt(v);
+    };
+  });
 }
-if(false){ buildParams(); }
+buildParams();
 
 function resetAll(){
   EFFECTS.forEach(e=>{
@@ -919,7 +931,6 @@ function sizeCanvas(){
 sizeCanvas();
 window.addEventListener('resize',sizeCanvas);
 
-if(false){
 document.querySelectorAll('.fmt-btn').forEach(btn=>{
   btn.onclick=()=>{
     state.format=btn.dataset.fmt;
@@ -928,14 +939,11 @@ document.querySelectorAll('.fmt-btn').forEach(btn=>{
     sizeCanvas();
   };
 });
-}
 
-if(false){
 textInput.addEventListener('input',()=>{
-  state.text=textInput.value||'FORM';
-  textCache.key='';resetAll();
+  state.text=textInput.value.trim()||'LESS. BETTER.';
+  textCache.key='';
 });
-}
 
 // ═══════════════════════════════════════════
 // ANIMATION LOOP
