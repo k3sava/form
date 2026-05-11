@@ -40,8 +40,9 @@
       {key:'brutalist', label:'BRUTALIST', min:0, max:1, def:0.2, step:0.01, fmt:v=>v.toFixed(2)},
       {key:'kinetic',   label:'KINETIC',   min:0, max:1, def:0.0, step:0.01, fmt:v=>v.toFixed(2)},
       {key:'painterly', label:'PAINTERLY', min:0, max:1, def:0.0, step:0.01, fmt:v=>v.toFixed(2)},
+      {key:'mycelium',  label:'MYCELIUM',  min:0, max:1, def:0.0, step:0.01, fmt:v=>v.toFixed(2)},
     ],
-    defaults:{swiss:0.5, editorial:0.3, brutalist:0.2, kinetic:0.0, painterly:0.0},
+    defaults:{swiss:0.5, editorial:0.3, brutalist:0.2, kinetic:0.0, painterly:0.0, mycelium:0.0},
 
     layout(tree, format, params){
       const all=window.__formAllPhilosophies||[];
@@ -56,6 +57,7 @@
         {id:'brutalist', w:params.brutalist},
         {id:'kinetic',   w:params.kinetic},
         {id:'painterly', w:params.painterly},
+        {id:'mycelium',  w:params.mycelium||0},
       ].sort((a,b)=>b.w-a.w);
       const dom=all.find(p=>p.id===entries[0].id) || all[0];
       const sub=all.find(p=>p.id===entries[1].id);
