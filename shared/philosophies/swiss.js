@@ -286,8 +286,11 @@ window.FORM_PHILOSOPHY = {
       });
     }
 
-    // When Animate is on (t > 0), threshold breathes ±0.09.
-    const breathing = t > 0 ? Math.sin(t * 0.0009) * 0.09 : 0;
+    // When Animate is on, threshold breathes ±0.09 over exactly one CYCLE_MS.
+    // sin(2π × phase) → perfect loop at phase 0 and phase 1.
+    const CYCLE = window.CYCLE_MS || 15000;
+    const phase = t > 0 ? (t % CYCLE) / CYCLE : 0;
+    const breathing = t > 0 ? Math.sin(phase * Math.PI * 2) * 0.09 : 0;
     const threshold = Math.max(0.02, Math.min(0.85, params.threshold + breathing));
     const strokeF = params.stroke;
     const shape = params.shape;

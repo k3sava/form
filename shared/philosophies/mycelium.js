@@ -85,9 +85,15 @@ window.FORM_PHILOSOPHY = {
 
     const lum = getTextLum(layout.phrase, W, H);
 
-    // Reset state when phrase, size, or branch count changes
+    // Perfect-loop cycle: 0..1 across CYCLE_MS.
+    const CYCLE = window.CYCLE_MS || 15000;
+    const phase = t > 0 ? (t % CYCLE) / CYCLE : 0;
+    // Reset state at cycle start (or when phrase/size/count changes).
     const stateKey = layout.phrase + '|' + W + 'x' + H + '|' + cnt;
-    if(!this._state || this._lastKey !== stateKey){
+    const cycleId = Math.floor(t / CYCLE);
+    const needReset = !this._state || this._lastKey !== stateKey || this._lastCycle !== cycleId;
+
+    if(needReset){
       const seeds=[];
       for(let y=2;y<H-2;y++)for(let x=2;x<W-2;x++){
         if(lum[y*W+x]>.08){
@@ -109,16 +115,31 @@ window.FORM_PHILOSOPHY = {
       }
       this._state = { n:cnt, branches, seeds, age:0 };
       this._lastKey = stateKey;
+      this._lastCycle = cycleId;
       ctx.fillStyle = this.palette.bg;
       ctx.fillRect(0,0,W,H);
     }
 
     const s = this._state;
     s.age++;
-    if(s.age % 180 === 0){
+    // Growth window: 0.0–0.55 actively grow.
+    // Rest window:   0.55–0.70 hold steady.
+    // Fade window:   0.70–1.00 wipe with increasing alpha.
+    const growing = phase < 0.55;
+    const fading  = phase >= 0.70;
+    if(fading){
+      // Fade canvas with rising alpha proportional to how far into the fade window we are.
+      const fadeT = (phase - 0.70) / 0.30; // 0..1
+      const wipeAlpha = 0.04 + Math.pow(fadeT, 1.6) * 0.18;
+      ctx.fillStyle = `rgba(10,10,10,${wipeAlpha.toFixed(3)})`;
+      ctx.fillRect(0,0,W,H);
+    } else if(s.age % 180 === 0){
+      // Light periodic wash to keep the field from over-filling during growth.
       ctx.fillStyle='rgba(10,10,10,.15)';
       ctx.fillRect(0,0,W,H);
     }
+    // Suppress further branch advancement once we hit deep fade
+    if(phase >= 0.92){ return; }
 
     const step = grow*.3;
     for(const b of s.branches){

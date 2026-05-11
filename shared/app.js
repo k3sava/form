@@ -40,6 +40,12 @@ window.FORMATS={
   landscape:{w:1200,h:628,  label:'1.91:1'},
 };
 
+// One animation cycle is exactly 15 seconds across every philosophy.
+// Render functions receive `t` (raw ms); the philosophy computes its phase as
+//   phase = (t % CYCLE_MS) / CYCLE_MS    ∈ [0,1)
+// guaranteeing a perfect seamless loop. Export records 2× cycle = 30s.
+window.CYCLE_MS = 15000;
+
 // STATE — shared across philosophies
 window.state={
   text: 'LESS. BETTER.',
@@ -237,10 +243,12 @@ window.__bindExport=function(canvas){
     recording=true;
     btn.classList.add('rec-active');
     if(overlay)overlay.style.display='flex';
+    // Record exactly 2× CYCLE_MS so the WebM contains two perfect loops.
+    const DURATION = (window.CYCLE_MS || 15000) * 2;
     const t0=performance.now();
     function tick(){
       if(!recording)return;
-      const el=(performance.now()-t0)/30000;
+      const el=(performance.now()-t0)/DURATION;
       if(bar)bar.style.width=Math.min(100,el*100)+'%';
       if(el>=1){ mediaRec.stop(); return; }
       requestAnimationFrame(tick);
