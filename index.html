@@ -105,22 +105,8 @@ window.addEventListener('load', function(){
   const textInput = document.getElementById('text-input');
   const paramRow = document.getElementById('param-row');
 
-  function buildParams(){
-    paramRow.innerHTML='';
-    phil.controls.forEach((p,i)=>{
-      const val = window.state.controls[p.key];
-      const div = document.createElement('div');
-      div.className='param';
-      div.innerHTML = '<div class="param-header"><span class="param-label">'+p.label+'</span><span class="param-val" id="pv'+i+'">'+p.fmt(val)+'</span></div><input type="range" min="'+p.min+'" max="'+p.max+'" step="'+p.step+'" value="'+val+'" id="ps'+i+'">';
-      paramRow.appendChild(div);
-      div.querySelector('input').oninput = function(){
-        const v=parseFloat(this.value);
-        window.state.controls[p.key]=v;
-        document.getElementById('pv'+i).textContent = p.fmt(v);
-      };
-    });
-  }
-  buildParams();
+  // Use the shared param builder (slider/check/select/button + standard contract).
+  window.__buildParams(phil);
 
   document.querySelectorAll('.fmt-btn').forEach(btn => {
     btn.onclick = () => {
@@ -167,9 +153,11 @@ window.addEventListener('load', function(){
 
   function tick(ts){
     if(window.__motionPaused){ requestAnimationFrame(tick); return; }
+    if(window.__applyInteractive) window.__applyInteractive(phil);
     const fmt = window.FORMATS[window.state.format];
     const layout = phil.layout(window.state.tree, fmt, window.state.controls);
-    phil.render(ctx, layout, ts, window.state.controls, window.state.tree);
+    const tt = window.__animEnabled===false ? 0 : ts;
+    phil.render(ctx, layout, tt, window.state.controls, window.state.tree);
     requestAnimationFrame(tick);
   }
   requestAnimationFrame(tick);

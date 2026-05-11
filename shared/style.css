@@ -159,3 +159,24 @@ input[type=range]::-moz-range-thumb{width:12px;height:12px;border-radius:50%;bac
 
 main{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);overflow:hidden;transition:background 200ms ease;z-index:0;}
 #canvas{display:block;box-shadow:0 0 0 1px var(--canvas-edge);}
+
+/* — FORM DRAWER PARAMS (tooooools-style monospace control panel) — */
+#drawer{font-family:"JetBrains Mono","SF Mono",ui-monospace,monospace;font-size:11px;letter-spacing:.04em;}
+#drawer #text-input{font-family:inherit;font-size:13px;letter-spacing:.02em;}
+.fp-row{display:flex;align-items:center;gap:8px;padding:3px 0;min-height:22px;}
+.fp-row .fp-lbl{flex:1;color:var(--pill-text);text-transform:uppercase;letter-spacing:.12em;white-space:nowrap;font-size:10px;}
+.fp-row.fp-slider input[type=range]{flex:1.4;min-width:60px;}
+.fp-row.fp-slider .fp-val{font-variant-numeric:tabular-nums;color:var(--pill-text-active);font-size:10px;min-width:42px;text-align:right;}
+.fp-check{background:transparent;border:none;color:var(--pill-text-active);cursor:pointer;font:inherit;padding:0 4px;line-height:1;}
+.fp-row.fp-check{padding:2px 0;}
+.fp-row.fp-check .fp-lbl{flex:1;}
+.fp-row.fp-select{padding:2px 0;}
+.fp-sel-prev,.fp-sel-next{background:transparent;border:none;color:var(--pill-text);cursor:pointer;font:inherit;padding:0 4px;line-height:1;}
+.fp-sel-prev:hover,.fp-sel-next:hover{color:var(--pill-text-active);}
+.fp-sel-val{color:var(--pill-text-active);min-width:54px;text-align:center;text-transform:uppercase;font-size:10px;letter-spacing:.1em;}
+.fp-sep{height:1px;background:var(--pill-border);margin:8px 0;opacity:0.5;}
+.fp-row.fp-btnrow{gap:6px;padding-top:4px;}
+.fp-btn{flex:1;background:transparent;border:1px solid var(--pill-border);color:var(--pill-text-active);cursor:pointer;font:inherit;padding:6px 8px;border-radius:6px;text-align:left;display:flex;justify-content:space-between;align-items:center;letter-spacing:.08em;text-transform:uppercase;font-size:10px;}
+.fp-btn:hover{border-color:var(--pill-text-active);background:rgba(127,127,127,0.04);}
+.fp-key{opacity:0.4;font-size:9px;letter-spacing:0;}
+html[data-theme="terminal"] #drawer{font-family:"JetBrains Mono","SF Mono",ui-monospace,monospace;}

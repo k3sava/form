@@ -260,3 +260,149 @@ window.__loadSharedText=function(defaultText){
 window.__saveSharedText=function(text){
   try{ sessionStorage.setItem('form-text', text||''); }catch(e){}
 };
+
+// ──────────────────────────────────────────────────────────────────────
+// Drawer params + standard contract (Animate / Interactive / Randomize)
+// shared across every philosophy. Supports control types: slider, check, select, button.
+// ──────────────────────────────────────────────────────────────────────
+window.__animEnabled = true;          // Animate boolean
+window.__interactiveEnabled = false;  // Interactive boolean
+window.__mouseNorm = {x:0.5, y:0.5};  // 0..1 normalized
+
+document.addEventListener('mousemove', function(e){
+  if(!window.__interactiveEnabled) return;
+  window.__mouseNorm.x = e.clientX / window.innerWidth;
+  window.__mouseNorm.y = e.clientY / window.innerHeight;
+});
+
+// Build the drawer with rich control types. Re-renders the entire #param-row.
+window.__buildParams = function(phil, opts){
+  const row = document.getElementById('param-row');
+  if(!row) return;
+  row.innerHTML = '';
+  const state = window.state.controls;
+  phil.controls.forEach((p, i)=>{
+    const div = document.createElement('div');
+    div.className = 'fp-row fp-' + (p.type||'slider');
+    const t = p.type || 'slider';
+
+    if(t === 'slider'){
+      div.innerHTML =
+        '<span class="fp-lbl">'+p.label+'</span>'+
+        '<input type="range" min="'+p.min+'" max="'+p.max+'" step="'+p.step+'" value="'+state[p.key]+'">'+
+        '<span class="fp-val" id="fpv'+i+'">'+p.fmt(state[p.key])+'</span>';
+      row.appendChild(div);
+      div.querySelector('input').oninput = function(){
+        const v = parseFloat(this.value);
+        state[p.key] = v;
+        document.getElementById('fpv'+i).textContent = p.fmt(v);
+      };
+    } else if(t === 'check'){
+      const checked = state[p.key];
+      div.innerHTML =
+        '<button class="fp-check" aria-pressed="'+checked+'">['+(checked?'×':' ')+']</button>'+
+        '<span class="fp-lbl">'+p.label+'</span>';
+      row.appendChild(div);
+      div.querySelector('button').onclick = function(){
+        state[p.key] = !state[p.key];
+        this.setAttribute('aria-pressed', state[p.key]);
+        this.textContent = '['+(state[p.key]?'×':' ')+']';
+      };
+    } else if(t === 'select'){
+      div.innerHTML =
+        '<span class="fp-lbl">'+p.label+'</span>'+
+        '<button class="fp-sel-prev" aria-label="prev">◀</button>'+
+        '<span class="fp-sel-val" id="fpv'+i+'">'+state[p.key]+'</span>'+
+        '<button class="fp-sel-next" aria-label="next">▶</button>';
+      row.appendChild(div);
+      const cycle = (dir)=>{
+        const idx = p.options.indexOf(state[p.key]);
+        const n = p.options.length;
+        const next = (idx + dir + n) % n;
+        state[p.key] = p.options[next];
+        document.getElementById('fpv'+i).textContent = state[p.key];
+      };
+      div.querySelector('.fp-sel-prev').onclick = ()=>cycle(-1);
+      div.querySelector('.fp-sel-next').onclick = ()=>cycle(1);
+    } else if(t === 'button'){
+      div.innerHTML = '<button class="fp-btn">'+p.label+'</button>';
+      row.appendChild(div);
+      div.querySelector('button').onclick = p.onClick || (()=>{});
+    }
+  });
+
+  // Standard bottom contract
+  const sep = document.createElement('div');
+  sep.className = 'fp-sep';
+  row.appendChild(sep);
+
+  const animRow = document.createElement('div');
+  animRow.className = 'fp-row fp-check';
+  animRow.innerHTML =
+    '<button class="fp-check" aria-pressed="'+window.__animEnabled+'">['+(window.__animEnabled?'×':' ')+']</button>'+
+    '<span class="fp-lbl">ANIMATE</span>';
+  row.appendChild(animRow);
+  animRow.querySelector('button').onclick = function(){
+    window.__animEnabled = !window.__animEnabled;
+    this.setAttribute('aria-pressed', window.__animEnabled);
+    this.textContent = '['+(window.__animEnabled?'×':' ')+']';
+  };
+
+  const intRow = document.createElement('div');
+  intRow.className = 'fp-row fp-check';
+  intRow.innerHTML =
+    '<button class="fp-check" aria-pressed="'+window.__interactiveEnabled+'">['+(window.__interactiveEnabled?'×':' ')+']</button>'+
+    '<span class="fp-lbl">INTERACTIVE</span>';
+  row.appendChild(intRow);
+  intRow.querySelector('button').onclick = function(){
+    window.__interactiveEnabled = !window.__interactiveEnabled;
+    this.setAttribute('aria-pressed', window.__interactiveEnabled);
+    this.textContent = '['+(window.__interactiveEnabled?'×':' ')+']';
+  };
+
+  const ranRow = document.createElement('div');
+  ranRow.className = 'fp-row fp-btnrow';
+  ranRow.innerHTML =
+    '<button class="fp-btn" data-action="rand">[ RANDOMIZE ]<span class="fp-key">R</span></button>'+
+    '<button class="fp-btn" data-action="reset">[ RESET ]<span class="fp-key">⌥R</span></button>';
+  row.appendChild(ranRow);
+  ranRow.querySelector('[data-action=rand]').onclick = ()=>randomize(phil);
+  ranRow.querySelector('[data-action=reset]').onclick = ()=>resetParams(phil);
+
+  function randomize(phil){
+    phil.controls.forEach(p=>{
+      const t = p.type||'slider';
+      if(t==='slider'){
+        // round to step
+        const range = p.max - p.min;
+        const n = Math.floor(range / p.step);
+        const r = Math.floor(Math.random()*(n+1));
+        state[p.key] = p.min + r * p.step;
+      } else if(t==='check'){
+        state[p.key] = Math.random() < 0.5;
+      } else if(t==='select'){
+        state[p.key] = p.options[Math.floor(Math.random()*p.options.length)];
+      }
+    });
+    window.__buildParams(phil);
+  }
+  function resetParams(phil){
+    Object.keys(phil.defaults).forEach(k=>{ state[k] = phil.defaults[k]; });
+    window.__buildParams(phil);
+  }
+
+  // Expose for keyboard shortcuts
+  window.__randomize = ()=>randomize(phil);
+  window.__resetParams = ()=>resetParams(phil);
+};
+
+// Apply Interactive: mouse position drives the philosophy's interactiveKey if defined.
+window.__applyInteractive = function(phil){
+  if(!window.__interactiveEnabled) return;
+  if(!phil || !phil.interactiveKey) return;
+  const range = phil.interactiveRange;
+  if(!range) return;
+  const mx = window.__mouseNorm.x;
+  const v = range[0] + (range[1]-range[0]) * mx;
+  window.state.controls[phil.interactiveKey] = v;
+};
