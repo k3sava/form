@@ -57,6 +57,16 @@ body{position:relative;width:100vw;height:100dvh;overflow:hidden;}
 .tb .sun{display:none;}
 [data-theme="light"] .tb .moon{display:none;}
 [data-theme="light"] .tb .sun{display:block;}
+/* CONTROL BAR */
+#controlbar{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:30;display:flex;align-items:center;gap:3px;background:var(--pill-bg);border:1px solid var(--pill-border);border-radius:100px;padding:4px 6px;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);overflow-x:auto;-ms-overflow-style:none;scrollbar-width:none;max-width:calc(100vw - 32px);}
+#controlbar::-webkit-scrollbar{display:none;}
+.cbar-label{font:400 .56rem/1 'Helvetica Neue',Helvetica,Arial,sans-serif;letter-spacing:.16em;text-transform:uppercase;color:var(--pill-text-dim);padding:0 10px 0 6px;white-space:nowrap;}
+.pb{font:400 .56rem/1 'Helvetica Neue',Helvetica,Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--pill-text);background:none;border:none;border-radius:100px;padding:0 14px;min-height:44px;cursor:pointer;white-space:nowrap;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;transition:color .2s;-webkit-tap-highlight-color:transparent;user-select:none;}
+.pb:hover{color:var(--pill-text-active);}
+.pb.on{color:var(--pill-text-active);}
+.pb.on::after{content:'';position:absolute;bottom:5px;left:50%;transform:translateX(-50%);width:3px;height:3px;border-radius:50%;background:var(--pill-text-active);opacity:.6;}
+.pb .kbk{font-size:.34rem;opacity:.25;font-weight:300;letter-spacing:.04em;}
+@media(hover:none) and (pointer:coarse){.pb .kbk{display:none;}}
 #topbar,#controlbar,#drawer{opacity:0;pointer-events:none;transition:opacity .5s ease;}
 .chrome-on #topbar{opacity:1;pointer-events:auto;}
 .chrome-on #controlbar.show{opacity:1;pointer-events:auto;}
@@ -128,6 +138,11 @@ main{position:fixed;inset:0;display:flex;align-items:center;justify-content:cent
   <button class="tb" id="btn-drawer" aria-label="Open controls drawer" title="Drawer (/)">✎<span class="kbk">/</span></button>
   <button class="tb" id="btn-save" aria-label="Save PNG" title="Save PNG (S)">↓<span class="kbk">S</span></button>
   <button class="tb" id="btn-record" aria-label="Record video" title="Record video (R)">●<span class="kbk">R</span></button>
+</div>
+
+<!-- CONTROL BAR -->
+<div id="controlbar">
+  <span class="cbar-label">draft</span>
 </div>
 
 <main id="canvas-wrap">
@@ -810,20 +825,22 @@ const ctx=canvas.getContext('2d',{willReadFrequently:true});
 const wrap=document.getElementById('canvas-wrap');
 // rewired in chrome rewrite tasks 5-10
 
-if(false){
+const controlbar=document.getElementById('controlbar');
 EFFECTS.forEach((e,i)=>{
   const btn=document.createElement('button');
-  btn.className='style-btn'+(i===0?' active':'');
-  btn.textContent=e.name;
+  btn.className='pb'+(i===0?' on':'');
+  btn.dataset.idx=i;
+  btn.setAttribute('aria-label',`Effect: ${e.name}`);
+  btn.innerHTML=`${e.name}${i<5?'<span class="kbk">'+(i+1)+'</span>':''}`;
   btn.onclick=()=>{
     if(state.effect===i)return;
     state.effect=i;
-    document.querySelectorAll('.style-btn').forEach((b,j)=>b.classList.toggle('active',j===i));
-    buildParams();resetAll();
+    document.querySelectorAll('#controlbar .pb').forEach((b,j)=>b.classList.toggle('on',j===i));
+    if(typeof buildParams==='function')buildParams();
+    resetAll();
   };
-  styleRow.appendChild(btn);
+  controlbar.appendChild(btn);
 });
-}
 
 function buildParams(){
   // rewired in chrome rewrite task 8
@@ -987,11 +1004,13 @@ document.getElementById('video-btn').onclick=function(){
     dismissed=true;
     splash.classList.add('gone');
     document.body.classList.add('chrome-on');
+    document.getElementById('controlbar').classList.add('show');
   }
   function open(){
     dismissed=false;
     splash.classList.remove('gone');
     document.body.classList.remove('chrome-on');
+    document.getElementById('controlbar').classList.remove('show');
   }
   splash.addEventListener('click',dismiss);
   document.addEventListener('keydown',(e)=>{
