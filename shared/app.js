@@ -273,6 +273,47 @@ window.__PHRASES = [
 ];
 window.__phraseIdx = -1;
 
+// Decode URL params into state. Used by the visual-companion comparison
+// screen to render parameterised variations side by side.
+window.__applyUrlParams = function(phil){
+  try{
+    const u = new URL(location.href);
+    const q = u.searchParams;
+    const text = q.get('text');
+    if(text !== null){
+      const ti = document.getElementById('text-input');
+      if(ti){ ti.value = text; }
+      window.state.text = text;
+      if(window.__parse && window.__parse.basic) window.state.tree = window.__parse.basic(text);
+    }
+    const fmt = q.get('format');
+    if(fmt && window.FORMATS[fmt]){
+      window.state.format = fmt;
+      document.querySelectorAll('.fmt-btn').forEach(b=>b.classList.toggle('active', b.dataset.fmt===fmt));
+    }
+    if(phil && phil.controls){
+      phil.controls.forEach(p=>{
+        const v = q.get(p.key);
+        if(v === null) return;
+        if(p.type === 'check') window.state.controls[p.key] = (v === '1' || v === 'true');
+        else if(p.type === 'select') window.state.controls[p.key] = v;
+        else window.state.controls[p.key] = parseFloat(v);
+      });
+    }
+    if(q.get('chrome') === '0'){
+      const css = document.createElement('style');
+      css.textContent = '#topbar,#controlbar,#drawer,#splash{display:none !important;} main{padding:0 !important;}';
+      document.head.appendChild(css);
+      document.body.classList.add('chrome-on');
+    }
+    if(q.get('autosplash') === '1'){
+      const s = document.getElementById('splash');
+      if(s) s.classList.add('gone');
+      document.body.classList.add('chrome-on');
+    }
+  }catch(e){}
+};
+
 // Inject a phrase-preset cycler row at the top of the drawer.
 window.__renderPhraseDeck = function(){
   const drawer = document.getElementById('drawer');

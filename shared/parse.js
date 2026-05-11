@@ -164,19 +164,22 @@ const BREAK_BEFORE=new Set([
 ]);
 
 // Score the priority of breaking BEFORE a given word. 0..100.
-// 100 = forced (e.g., after sentence-ending punctuation, already handled as beat boundaries).
+// Higher = more natural pause. Typographers break at phrase boundaries, never inside one.
 function breakScoreBefore(word, prev){
   const w = (word||'').replace(/[^a-zA-Z0-9]/g,'').toLowerCase();
   if(!w) return 50;
-  // Strong: subordinators / conjunctions / "to + verb" infinitive
-  if(['and','but','or','so','yet','because','while','although','though','if','that','which','who'].includes(w)) return 80;
-  // Medium-strong: prepositions and relative markers
-  if(['to','of','in','on','at','for','by','with','from','into','through','after','before','about','against','between','during','toward','towards','like','as','than'].includes(w)) return 65;
-  // Medium: articles + auxiliaries (open a noun-phrase or verb-phrase)
-  if(['a','an','the','is','was','are','were','be','will','would','could','should','may','might','must','have','has','had'].includes(w)) return 45;
-  // Low: any stop-word as previous word means the connection is tight (don't break)
-  // Otherwise default mid-low
-  return 20;
+  // VERY strong: conjunctions (open a new clause)
+  if(['and','but','or','so','yet','because','while','although','though','if','that','which','who','whose','whom'].includes(w)) return 85;
+  // Strong: "to" before a verb-like word — infinitive opens a verb phrase
+  if(w === 'to') return 82;
+  // Strong: auxiliary verbs introduce the predicate of a sentence
+  if(['is','was','are','were','be','been','being','will','would','could','should','may','might','must','have','has','had','do','does','did'].includes(w)) return 80;
+  // Medium-strong: prepositions and relative markers (open a PP)
+  if(['of','in','on','at','for','by','with','from','into','through','after','before','about','against','between','during','toward','towards','like','as','than','until','since','unless','because'].includes(w)) return 68;
+  // Medium: articles open a noun phrase
+  if(['a','an','the'].includes(w)) return 55;
+  // Otherwise default low — discourages breaking inside a phrase
+  return 10;
 }
 
 // Antonym/contrast pairs. When BOTH appear in a phrase, the typographic
@@ -270,11 +273,15 @@ function detectIntent(tree){
   }
 
   // 5. TIME markers — "now", "tomorrow", "today", "yesterday", "never", "always".
+  // A phrase-final time word is the literal temporal payoff — outranks even antonym contrast.
   const TIME = new Set(['now','today','tomorrow','yesterday','never','always','forever','tonight']);
   lc.forEach((w, i)=>{
     if(TIME.has(w)){
-      allTokens[i].intentScale = Math.max(allTokens[i].intentScale, 1.5);
-      allTokens[i].intentRole = allTokens[i].intentRole || 'time';
+      const isPhraseEnd = (i === allTokens.length-1);
+      const scale = isPhraseEnd ? 2.4 : 1.5;
+      allTokens[i].intentScale = Math.max(allTokens[i].intentScale, scale);
+      // Phrase-final time markers carry the message — promote role to 'time-payoff'.
+      allTokens[i].intentRole = isPhraseEnd ? 'time-payoff' : (allTokens[i].intentRole || 'time');
     }
   });
 
@@ -292,6 +299,34 @@ function detectIntent(tree){
       allTokens[best].intentRole = 'payoff';
     }
   }
+
+  // 7. PRIMA BALLERINA — only ONE word gets the max scale. If multiple were elevated
+  //    (e.g. antonym-payoff AND time marker AND imperative), demote all but the highest-scale.
+  //    Paula Scher rule: exactly one focal element.
+  let topIdx = -1, topScale = 0;
+  allTokens.forEach((t, i)=>{
+    if(t.intentScale > topScale){ topScale = t.intentScale; topIdx = i; }
+  });
+  if(topIdx >= 0 && topScale > 1.3){
+    allTokens.forEach((t, i)=>{
+      if(i === topIdx) return;
+      if(t.intentScale >= 1.3){
+        // Demote to "sub" tier (body for content words, smaller for stop-words).
+        t.intentScale = 1.15;
+        if(t.intentRole) t.intentRole = t.intentRole.replace(/payoff|imperative|question/, 'sub-emphasis');
+      }
+    });
+  }
+
+  // 8. THREE-TIER snap. Cluster intentScale into display/sub/body/whisper buckets.
+  //    Real typographers use 3 sizes max. Smashing's rule.
+  allTokens.forEach(t=>{
+    const s = t.intentScale;
+    if(s >= 1.6) t.intentScale = 2.0;        // display
+    else if(s >= 1.2) t.intentScale = 1.25;  // sub
+    else if(s >= 0.85) t.intentScale = 1.0;  // body
+    else t.intentScale = 0.7;                // whisper (setup / antonym-a)
+  });
 
   return tree;
 }

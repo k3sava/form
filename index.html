@@ -108,6 +108,7 @@ window.addEventListener('load', function(){
   // Use the shared param builder (slider/check/select/button + standard contract).
   window.__buildParams(phil);
   window.__renderPhraseDeck();
+  window.__applyUrlParams(phil);
 
   document.querySelectorAll('.fmt-btn').forEach(btn => {
     btn.onclick = () => {

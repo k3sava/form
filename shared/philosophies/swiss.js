@@ -70,14 +70,13 @@ function phraseLineBreak(wordWidths, breakAfter, maxLineCells, interWord){
     for(let j = i; j < N; j++){
       lineW += (j===i ? 0 : interWord) + wordWidths[j];
       if(lineW > maxLineCells && j > i) break; // doesn't fit (i==j: single word over-width — accept anyway)
-      // Last line gets no rag penalty. Others get penalized for being narrow.
       const isLast = (j === N-1);
-      const fillRatio = lineW / maxLineCells; // 0..1
-      const ragCost = isLast ? 0 : Math.pow(1 - fillRatio, 2) * 100;
-      // Break-after score: at word j, the break-after[j] tells how natural the next break is.
-      // Higher score = lower penalty. Skip on the final line (no break needed).
+      const fillRatio = lineW / maxLineCells;
+      // Very soft rag — typographers freely break short for meaning.
+      const ragCost = isLast ? 0 : Math.pow(1 - fillRatio, 2) * 12;
+      // Break score dominates. A break in the middle of a phrase is very expensive.
       const breakSc = isLast ? 100 : breakAfter[j];
-      const breakPenalty = isLast ? 0 : (100 - breakSc) * 1.5;
+      const breakPenalty = isLast ? 0 : Math.pow(100 - breakSc, 2) * 0.5;
       const restCost = isLast ? 0 : memo[j+1].cost;
       const totalCost = ragCost + breakPenalty + restCost;
       if(totalCost < bestCost){
@@ -171,42 +170,50 @@ window.FORM_PHILOSOPHY = {
     const wordHeights = wordObjs.map(w => rows * w.intentScale);
 
     // Break-score AFTER word i. Higher = stronger preference to break here.
-    // - 100 after beat-end (post-punctuation): forced
-    // - high score if next word is a conjunction / preposition
-    // - low score otherwise
+    //  - 100 after beat-end (post-punctuation): forced
+    //  - 95 before a PAYOFF token (let it land alone on its own line)
+    //  - high score if next word is a conjunction / "to" / auxiliary verb
+    //  - low score otherwise
     const breakAfter = wordObjs.map((w, i)=>{
       if(i === wordObjs.length-1) return 0;
       if(w.isBeatEnd) return 100;
-      const nextWord = wordObjs[i+1].word;
+      const next = wordObjs[i+1];
+      // PAYOFF isolation — break BEFORE any word with a strong intent role so it lands alone.
+      if(next.intentRole && ['antonym-payoff','payoff','imperative','time','time-payoff','question'].includes(next.intentRole)) return 95;
       const breakSc = window.__parse && window.__parse.breakScoreBefore
-        ? window.__parse.breakScoreBefore(nextWord, w.word) : 20;
+        ? window.__parse.breakScoreBefore(next.word, w.word) : 10;
       return breakSc;
     });
 
     const targetW = W*0.92, targetH = H*0.88;
 
-    // Find the largest base cellSize that lets:
-    //  - each word fit on its line (no single word over-width)
-    //  - the phrase wraps with phrase-aware line breaks
-    //  - total vertical fits the canvas
-    // Note: word widths and heights are already scaled by intentScale, so the largest-intent
-    // word effectively decides the bound.
-    let cellSize = 2;
-    let lines = null;
+    // Pick largest cellSize where breaks are all "natural" (score >= 60).
+    // Fall back to lower break-quality threshold if no size satisfies the strict one.
+    let cellSize = 2, lines = null;
     const maxTry = Math.floor(targetW / Math.max(cols,1));
-    for(let trySize = maxTry; trySize >= 2; trySize--){
-      const maxLineCells = targetW / trySize;
-      if(wordWidths.some(w => w > maxLineCells)){ continue; }
-      const cand = phraseLineBreak(wordWidths, breakAfter, maxLineCells, interWord);
-      // Per-line height = max wordHeight on that line + gap
-      const lineHeights = cand.map(lineIdxs=>{
-        const maxH = Math.max(...lineIdxs.map(wi => wordHeights[wi]));
-        return (maxH + gapCells*0.8);
-      });
-      const totalHCells = lineHeights.reduce((s,h)=>s+h, 0);
-      const totalH = totalHCells * trySize;
-      if(totalH <= targetH){ cellSize = trySize; lines = cand; break; }
+    function tryFit(minBreakScore){
+      for(let trySize = maxTry; trySize >= 2; trySize--){
+        const maxLineCells = targetW / trySize;
+        if(wordWidths.some(w => w > maxLineCells)) continue;
+        const cand = phraseLineBreak(wordWidths, breakAfter, maxLineCells, interWord);
+        const lineHeights = cand.map(lineIdxs=>{
+          const maxH = Math.max(...lineIdxs.map(wi => wordHeights[wi]));
+          return (maxH + gapCells*0.8);
+        });
+        const totalH = lineHeights.reduce((s,h)=>s+h, 0) * trySize;
+        if(totalH > targetH) continue;
+        // Verify each break is at least "natural"
+        const allBreaksOk = cand.slice(0, -1).every((line, li)=>{
+          const lastWi = line[line.length-1];
+          return breakAfter[lastWi] >= minBreakScore;
+        });
+        if(allBreaksOk) return { cellSize: trySize, lines: cand };
+      }
+      return null;
     }
+    // Try strictest first, then relax — preserves natural breaks but doesn't shrink unnecessarily
+    let fit = tryFit(60) || tryFit(40) || tryFit(20) || tryFit(0);
+    if(fit){ cellSize = fit.cellSize; lines = fit.lines; }
     if(!lines){
       cellSize = 2; lines = [wordObjs.map((_,i)=>i)];
     }
