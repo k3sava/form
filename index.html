@@ -23,6 +23,28 @@
 [data-theme="light"]{--bg:#f5f3ee;--border:#dcd7cd;--muted:#8a8680;--label:#9a958d;--accent:#2a2622;--track:#dcd7cd;--thumb:#2a2622;--text:#0a0a0a;--placeholder:#c4bfb5;--hover-border:#a8a39a;--hover-color:#5a564f;--hover-border-strong:#b4b0a6;--hover-color-strong:#76716a;--canvas-edge:rgba(0,0,0,.06);--rec-overlay:rgba(245,243,238,.88);color-scheme:light;--ov-bg:rgba(245,243,238,.92);--ov-text:#0a0a0a;--ov-dim:#9a958d;--ov-mid:#5a564f;--ov-strong:#0a0a0a;--ov-border:rgba(0,0,0,.08);--ov-grid-bg:rgba(0,0,0,.02);--ov-row-bg:rgba(0,0,0,.02);--ov-row-border:rgba(0,0,0,.05);--ov-key-bg:rgba(0,0,0,.04);--ov-key-text:#5a564f;--ov-dot:#2a2622;--pill-bg:rgba(0,0,0,.04);--pill-border:rgba(0,0,0,.08);--pill-text:rgba(0,0,0,.45);--pill-text-active:rgba(0,0,0,.88);--pill-text-dim:rgba(0,0,0,.25);}
 html,body{margin:0;padding:0;background:var(--bg);color:var(--accent);font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;letter-spacing:.06em;height:100dvh;overflow:hidden;-webkit-font-smoothing:antialiased;user-select:none;-webkit-user-select:none;touch-action:manipulation;transition:background 140ms ease,color 140ms ease;}
 body{position:relative;width:100vw;height:100dvh;overflow:hidden;}
+/* SPLASH OVERLAY */
+.ov{position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--ov-bg);backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);transition:opacity .5s cubic-bezier(.4,0,.2,1);padding:20px;overflow-y:auto;}
+.ov.gone{opacity:0;pointer-events:none;}
+.spl-inner{max-width:490px;width:100%;display:flex;flex-direction:column;align-items:center;}
+.spl-title{font-size:clamp(.92rem,3vw,1.5rem);font-weight:200;letter-spacing:.3em;color:var(--ov-text);margin-bottom:7px;text-align:center;}
+.spl-desc{font-size:clamp(.54rem,.82vw,.66rem);font-weight:300;letter-spacing:.1em;color:var(--ov-dim);line-height:2;text-align:center;margin-bottom:24px;max-width:360px;}
+.sck{display:block;width:100%;margin-bottom:0;}
+.sct{display:none;width:100%;margin-bottom:0;}
+@media(hover:none) and (pointer:coarse){.sck{display:none;}.sct{display:block;}}
+.sgrid{border:1px solid var(--ov-border);border-radius:10px;overflow:hidden;display:grid;grid-template-columns:1fr 1fr;width:100%;background:var(--ov-grid-bg);}
+@media(max-width:440px){.sgrid{grid-template-columns:1fr;}}
+.srow{display:flex;align-items:center;padding:9px 12px;gap:9px;background:var(--ov-row-bg);border-right:1px solid var(--ov-row-border);border-bottom:1px solid var(--ov-row-border);}
+.srow:nth-child(2n){border-right:none;}
+.srow:nth-last-child(-n+2){border-bottom:none;}
+.srow.cta{background:var(--ov-key-bg);border-bottom:none;grid-column:1/-1;}
+.srow.cta .skey{color:var(--ov-strong);border-color:var(--ov-border);background:var(--ov-key-bg);letter-spacing:.06em;}
+.cta-phrase{display:flex;align-items:center;gap:7px;flex-wrap:nowrap;}
+.cta-word{font-size:.52rem;font-weight:300;letter-spacing:.07em;color:var(--ov-mid);white-space:nowrap;}
+.blink-dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--ov-dot);opacity:.4;flex-shrink:0;margin-left:4px;animation:blink 1.4s ease-in-out infinite;}
+.skey{font-size:.5rem;font-weight:400;letter-spacing:.06em;color:var(--ov-key-text);background:var(--ov-key-bg);border:1px solid var(--ov-border);border-radius:4px;padding:2px 7px;white-space:nowrap;flex-shrink:0;min-width:38px;text-align:center;}
+.sdsc{font-size:.52rem;font-weight:300;letter-spacing:.05em;color:var(--ov-dim);}
+@media(max-width:440px){.srow{border-right:none;}.srow:nth-last-child(-n+2){border-bottom:1px solid var(--ov-row-border);}.srow:last-child{border-bottom:none;}.srow.cta{border-bottom:none;}}
 @keyframes blink{0%,100%{opacity:1;}50%{opacity:.4;}}
 #rec-overlay{display:none;position:fixed;inset:0;background:var(--rec-overlay);align-items:center;justify-content:center;z-index:100;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);}
 .rec-inner{display:flex;flex-direction:column;align-items:center;gap:16px;min-width:220px;}
@@ -41,6 +63,42 @@ main{position:fixed;inset:0;display:flex;align-items:center;justify-content:cent
     <div class="rec-dot"></div>
     <span id="rec-label">RECORDING — 30s</span>
     <div class="rec-track"><div id="rec-bar"></div></div>
+  </div>
+</div>
+
+<!-- SPLASH -->
+<div class="ov" id="splash" role="dialog" aria-modal="true" aria-labelledby="spl-title">
+  <div class="spl-inner">
+    <div class="spl-title" id="spl-title">FORM</div>
+    <div class="spl-desc">a typography lab</div>
+
+    <!-- Desktop shortcuts -->
+    <div class="sgrid sck">
+      <div class="srow"><span class="skey">Type</span><span class="sdsc">edit phrase</span></div>
+      <div class="srow"><span class="skey">Tab</span><span class="sdsc">next effect</span></div>
+      <div class="srow"><span class="skey">Space</span><span class="sdsc">play / pause motion</span></div>
+      <div class="srow"><span class="skey">/</span><span class="sdsc">focus phrase input</span></div>
+      <div class="srow"><span class="skey">T</span><span class="sdsc">theme</span></div>
+      <div class="srow"><span class="skey">S</span><span class="sdsc">save PNG</span></div>
+      <div class="srow"><span class="skey">R</span><span class="sdsc">record video</span></div>
+      <div class="srow"><span class="skey">?</span><span class="sdsc">help</span></div>
+      <div class="srow cta">
+        <span class="skey">Enter</span>
+        <span class="cta-phrase"><span class="cta-word">tap anywhere to begin</span><span class="blink-dot"></span></span>
+      </div>
+    </div>
+
+    <!-- Touch shortcuts -->
+    <div class="sgrid sct">
+      <div class="srow"><span class="skey">Tap</span><span class="sdsc">edit / interact</span></div>
+      <div class="srow"><span class="skey">Swipe</span><span class="sdsc">switch effect</span></div>
+      <div class="srow"><span class="skey">Hold</span><span class="sdsc">show controls</span></div>
+      <div class="srow"><span class="skey">⋯</span><span class="sdsc">help in top corner</span></div>
+      <div class="srow cta">
+        <span class="skey">Tap</span>
+        <span class="cta-phrase"><span class="cta-word">tap anywhere to begin</span><span class="blink-dot"></span></span>
+      </div>
+    </div>
   </div>
 </div>
 
