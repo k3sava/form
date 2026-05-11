@@ -48,7 +48,7 @@ window.CYCLE_MS = 15000;
 
 // STATE — shared across philosophies
 window.state={
-  text: 'LESS. BETTER.',
+  text: 'less is more',
   format: 'square',
   tree: null,
   philosophy: null,

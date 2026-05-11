@@ -25,30 +25,66 @@ const N = (function(){
 
 function lerp(a,b,t){return a+(b-a)*t;}
 
-// Build a luminance bitmap of the phrase at the canvas size.
-const textCache = {key:'', lum:null, w:0, h:0};
-function getTextLum(text, w, h){
-  const key = text + '|' + w + '|' + h;
-  if(textCache.key===key)return textCache.lum;
-  const oc=document.createElement('canvas'); oc.width=w; oc.height=h;
-  const cx=oc.getContext('2d');
-  cx.fillStyle='#000'; cx.fillRect(0,0,w,h);
-  const lines=text.toUpperCase().trim().split(/\n/);
-  let sz=h*.62, it=0;
-  const mxW=w*.88;
-  while(it++<24){
-    cx.font=`900 ${sz}px "Helvetica Neue",Helvetica,"Arial Black",Arial,sans-serif`;
-    const wd=Math.max(...lines.map(l=>cx.measureText(l).width));
-    if(wd<=mxW && sz*1.1*lines.length<=h*.9)break;
-    sz*=.88;
+// Build a luminance bitmap of the phrase at the canvas size, using the same
+// phrase-aware line-breaking + block-justification as every other mode.
+// Each word renders at its block-justified font size so seed extraction
+// follows the parser's structural intent (setup whisper vs payoff display).
+const textCache = {key:'', lum:null};
+const measureC = document.createElement('canvas');
+const measureCtx = measureC.getContext('2d');
+function fontSpec(sizePx){
+  return `900 ${Math.max(1,sizePx|0)}px "Helvetica Neue","Arial Black",Helvetica,Arial,sans-serif`;
+}
+function measureWord(text, sizePx){
+  measureCtx.font = fontSpec(sizePx);
+  return measureCtx.measureText(text).width;
+}
+
+function getPhraseLum(tree, w, h){
+  const cacheKey = ((tree && tree.raw) || '') + '|' + w + 'x' + h;
+  if(textCache.key === cacheKey) return textCache.lum;
+
+  const oc = document.createElement('canvas'); oc.width = w; oc.height = h;
+  const cx = oc.getContext('2d');
+  cx.fillStyle = '#000'; cx.fillRect(0,0,w,h);
+
+  // Lay out the phrase exactly as Editorial/Brutalist/Kinetic/Painterly do.
+  const layout = (window.__formLayout && window.__formLayout.phraseBoxes) ? window.__formLayout.phraseBoxes(tree, {
+    widthOf:  (word, intentScale, unit) => measureWord((word.w||'').toUpperCase(), unit * intentScale),
+    heightOf: (intentScale, unit) => unit * intentScale * 0.78,
+    interWordRatio: 0.35,
+    lineGapRatio: 0.12,
+    targetW: w * 0.88,
+    targetH: h * 0.86,
+    minUnit: 18, maxUnit: Math.round(h * 0.55),
+    maxBlockScale: 2.4,
+    alignX: 'center',
+    cx: w/2, cy: h/2,
+  }) : null;
+
+  cx.fillStyle = '#fff';
+  cx.textAlign = 'left';
+  cx.textBaseline = 'alphabetic';
+
+  if(layout && layout.boxes && layout.boxes.length){
+    layout.boxes.forEach(b => {
+      cx.font = fontSpec(b.unitPx);
+      cx.fillText((b.word||'').toUpperCase(), b.x, b.baselineY);
+    });
+  } else {
+    // fallback to single-line render if shared layout isn't available
+    const text = ((tree && tree.beats) || []).map(b => b.text).join('. ').toUpperCase();
+    let sz = h * 0.50;
+    cx.font = fontSpec(sz);
+    while(cx.measureText(text).width > w*0.88 && sz > 12){ sz *= 0.88; cx.font = fontSpec(sz); }
+    cx.textAlign = 'center'; cx.textBaseline = 'middle';
+    cx.fillText(text, w/2, h/2);
   }
-  cx.fillStyle='#fff'; cx.textAlign='center'; cx.textBaseline='middle';
-  const lh=sz*1.1, tot=lh*lines.length;
-  lines.forEach((l,i)=>cx.fillText(l, w/2, h/2 - tot/2 + lh/2 + lh*i));
-  const img=cx.getImageData(0,0,w,h);
-  const lum=new Float32Array(w*h);
-  for(let i=0;i<lum.length;i++)lum[i]=img.data[i*4]/255;
-  textCache.key=key; textCache.lum=lum; textCache.w=w; textCache.h=h;
+
+  const img = cx.getImageData(0,0,w,h);
+  const lum = new Float32Array(w*h);
+  for(let i=0;i<lum.length;i++) lum[i] = img.data[i*4] / 255;
+  textCache.key = cacheKey; textCache.lum = lum;
   return lum;
 }
 
@@ -72,9 +108,9 @@ window.FORM_PHILOSOPHY = {
   _lastKey:'',
 
   layout(tree, format, params){
-    // Build the text the bitmap renderer needs: all beats joined; punctuation already stripped
-    const phrase = (tree.beats||[]).map(b=>b.text).join('. ') || '';
-    return { phrase, W: format.w, H: format.h };
+    // The text bitmap is computed in render() against the live canvas size,
+    // since branch state lives there too. Just carry the size + tree.
+    return { tree, W: format.w, H: format.h };
   },
 
   render(ctx, layout, t, params, tree){
@@ -83,13 +119,13 @@ window.FORM_PHILOSOPHY = {
     const grow = params.grow;
     const wild = params.wild;
 
-    const lum = getTextLum(layout.phrase, W, H);
+    const lum = getPhraseLum(tree, W, H);
 
     // Perfect-loop cycle: 0..1 across CYCLE_MS.
     const CYCLE = window.CYCLE_MS || 15000;
     const phase = t > 0 ? (t % CYCLE) / CYCLE : 0;
     // Reset state at cycle start (or when phrase/size/count changes).
-    const stateKey = layout.phrase + '|' + W + 'x' + H + '|' + cnt;
+    const stateKey = ((tree && tree.raw) || '') + '|' + W + 'x' + H + '|' + cnt;
     const cycleId = Math.floor(t / CYCLE);
     const needReset = !this._state || this._lastKey !== stateKey || this._lastCycle !== cycleId;
 
