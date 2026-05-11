@@ -187,17 +187,39 @@ window.FORM_PHILOSOPHY = {
 
     const targetW = W*0.92, targetH = H*0.88;
 
+    // Block-justification: after lines are chosen, scale each line so its width
+    // matches the widest line's natural width. "less is" and "more" then sit
+    // on the same block edge; "more" still dwarfs its setup line per-letter.
+    // Capped to keep very short lines from exploding vertically.
+    const MAX_BLOCK_SCALE = 2.4;
+    function blockScales(lines){
+      const widths = lines.map(idxs=>{
+        let w = 0;
+        idxs.forEach((wi, i)=>{
+          w += wordWidths[wi];
+          if(i < idxs.length-1) w += interWord;
+        });
+        return w;
+      });
+      const target = Math.max(...widths);
+      return { widths, target, scales: widths.map(w => Math.min(MAX_BLOCK_SCALE, target / w)) };
+    }
+
     // Pick largest cellSize where breaks are all "natural" (score >= 60).
     // Fall back to lower break-quality threshold if no size satisfies the strict one.
-    let cellSize = 2, lines = null;
+    let cellSize = 2, lines = null, lineScale = null;
     const maxTry = Math.floor(targetW / Math.max(cols,1));
     function tryFit(minBreakScore){
       for(let trySize = maxTry; trySize >= 2; trySize--){
         const maxLineCells = targetW / trySize;
         if(wordWidths.some(w => w > maxLineCells)) continue;
         const cand = phraseLineBreak(wordWidths, breakAfter, maxLineCells, interWord);
-        const lineHeights = cand.map(lineIdxs=>{
-          const maxH = Math.max(...lineIdxs.map(wi => wordHeights[wi]));
+        const bs = blockScales(cand);
+        // Block-scaled line widths must fit
+        const widestPx = bs.target * trySize;
+        if(widestPx > targetW) continue;
+        const lineHeights = cand.map((lineIdxs, li)=>{
+          const maxH = Math.max(...lineIdxs.map(wi => wordHeights[wi])) * bs.scales[li];
           return (maxH + gapCells*0.8);
         });
         const totalH = lineHeights.reduce((s,h)=>s+h, 0) * trySize;
@@ -207,20 +229,22 @@ window.FORM_PHILOSOPHY = {
           const lastWi = line[line.length-1];
           return breakAfter[lastWi] >= minBreakScore;
         });
-        if(allBreaksOk) return { cellSize: trySize, lines: cand };
+        if(allBreaksOk) return { cellSize: trySize, lines: cand, scales: bs.scales };
       }
       return null;
     }
     // Try strictest first, then relax — preserves natural breaks but doesn't shrink unnecessarily
     let fit = tryFit(60) || tryFit(40) || tryFit(20) || tryFit(0);
-    if(fit){ cellSize = fit.cellSize; lines = fit.lines; }
+    if(fit){ cellSize = fit.cellSize; lines = fit.lines; lineScale = fit.scales; }
     if(!lines){
-      cellSize = 2; lines = [wordObjs.map((_,i)=>i)];
+      cellSize = 2;
+      lines = [wordObjs.map((_,i)=>i)];
+      lineScale = [1];
     }
 
-    // Compute per-line heights in pixels and total
-    const linePxH = lines.map(lineIdxs=>{
-      const maxH = Math.max(...lineIdxs.map(wi => wordHeights[wi]));
+    // Compute per-line heights in pixels (block-scaled) and total
+    const linePxH = lines.map((lineIdxs, li)=>{
+      const maxH = Math.max(...lineIdxs.map(wi => wordHeights[wi])) * lineScale[li];
       return (maxH + gapCells*0.8) * cellSize;
     });
     const totalHpx = linePxH.reduce((s,h)=>s+h, 0);
@@ -230,27 +254,28 @@ window.FORM_PHILOSOPHY = {
     let yCursor = yStart;
     lines.forEach((wordIdxs, li)=>{
       const lineHpx = linePxH[li];
-      // Line width in pixels (sum word widths × their intentScale × cellSize + inter-word gaps × cellSize)
+      const ls = lineScale[li];
+      // Line width in pixels after block scaling
       let lineWpx = 0;
       wordIdxs.forEach((wi, i)=>{
-        lineWpx += wordWidths[wi] * cellSize;
-        if(i < wordIdxs.length-1) lineWpx += interWord * cellSize;
+        lineWpx += wordWidths[wi] * cellSize * ls;
+        if(i < wordIdxs.length-1) lineWpx += interWord * cellSize * ls;
       });
       const xStart = (W - lineWpx) / 2;
       let cursorX = xStart;
       wordIdxs.forEach((wi, i)=>{
         const wObj = wordObjs[wi];
-        // Local cell size for THIS word — scaled by intent.
-        const localCell = cellSize * wObj.intentScale;
+        // Local cell size for THIS word — intentScale × block-scale for the line.
+        const localCell = cellSize * wObj.intentScale * ls;
         const wordPxH = rows * localCell;
-        // Vertical-align word inside the line's baseline (bottom-aligned so different scales sit on a shared baseline)
+        // Vertical-align word inside the line's baseline (bottom-aligned)
         const yBase = yCursor + lineHpx - (gapCells*0.8 * cellSize) - wordPxH;
         wObj.chars.forEach(ch=>{
           const map = sampleGlyph(ch, rows, cols, fontSpec);
           placed.push({ char:ch, map, x:cursorX, y:yBase, cell:localCell, role:wObj.intentRole });
           cursorX += cols * localCell;
         });
-        if(i < wordIdxs.length-1) cursorX += interWord * cellSize;
+        if(i < wordIdxs.length-1) cursorX += interWord * cellSize * ls;
       });
       yCursor += lineHpx;
     });
