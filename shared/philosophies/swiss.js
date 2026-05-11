@@ -77,8 +77,17 @@ function phraseLineBreak(wordWidths, breakAfter, maxLineCells, interWord){
       // Break score dominates. A break in the middle of a phrase is very expensive.
       const breakSc = isLast ? 100 : breakAfter[j];
       const breakPenalty = isLast ? 0 : Math.pow(100 - breakSc, 2) * 0.5;
+      // Skipped-break penalty: a line that absorbs a high-score break point
+      // (e.g. groups a setup with its payoff) pays for it. Without this, the
+      // DP picks combined "is now" over isolated "is | now".
+      let skippedBreakPenalty = 0;
+      for(let k = i; k < j; k++){
+        if(breakAfter[k] >= 90){
+          skippedBreakPenalty += Math.pow(breakAfter[k] - 50, 2) * 0.4;
+        }
+      }
       const restCost = isLast ? 0 : memo[j+1].cost;
-      const totalCost = ragCost + breakPenalty + restCost;
+      const totalCost = ragCost + breakPenalty + skippedBreakPenalty + restCost;
       if(totalCost < bestCost){
         bestCost = totalCost;
         bestLine = [i, j];
@@ -191,7 +200,7 @@ window.FORM_PHILOSOPHY = {
     // matches the widest line's natural width. "less is" and "more" then sit
     // on the same block edge; "more" still dwarfs its setup line per-letter.
     // Capped to keep very short lines from exploding vertically.
-    const MAX_BLOCK_SCALE = 2.4;
+    const MAX_BLOCK_SCALE = 3.5;
     function blockScales(lines){
       const widths = lines.map(idxs=>{
         let w = 0;
@@ -207,10 +216,13 @@ window.FORM_PHILOSOPHY = {
 
     // Pick largest cellSize where breaks are all "natural" (score >= 60).
     // Fall back to lower break-quality threshold if no size satisfies the strict one.
-    let cellSize = 2, lines = null, lineScale = null;
+    let cellSize = 16, lines = null, lineScale = null;
     const maxTry = Math.floor(targetW / Math.max(cols,1));
+    // Floor cellSize at 16 so the 5×7 grid can keep S/8 and G/O distinguishable.
+    // Below that, glyphs collapse into ambiguous cell patterns.
+    const minTry = 16;
     function tryFit(minBreakScore){
-      for(let trySize = maxTry; trySize >= 2; trySize--){
+      for(let trySize = maxTry; trySize >= minTry; trySize--){
         const maxLineCells = targetW / trySize;
         if(wordWidths.some(w => w > maxLineCells)) continue;
         const cand = phraseLineBreak(wordWidths, breakAfter, maxLineCells, interWord);
@@ -237,7 +249,7 @@ window.FORM_PHILOSOPHY = {
     let fit = tryFit(60) || tryFit(40) || tryFit(20) || tryFit(0);
     if(fit){ cellSize = fit.cellSize; lines = fit.lines; lineScale = fit.scales; }
     if(!lines){
-      cellSize = 2;
+      cellSize = minTry;
       lines = [wordObjs.map((_,i)=>i)];
       lineScale = [1];
     }

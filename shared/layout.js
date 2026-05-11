@@ -68,8 +68,18 @@ function phraseLineBreak(wordWidths, breakAfter, maxLineUnits, interWord){
       const ragCost = isLast ? 0 : Math.pow(1 - fillRatio, 2) * 12;
       const breakSc = isLast ? 100 : breakAfter[j];
       const breakPenalty = isLast ? 0 : Math.pow(100 - breakSc, 2) * 0.5;
+      // Skipped-break penalty: a line that walks past a high-score break point
+      // (i.e. groups a setup with its payoff) pays for it. Without this, the DP
+      // picks combined "...is now" over isolated "...is | now" because the
+      // combined line is the last line and incurs no breakPenalty.
+      let skippedBreakPenalty = 0;
+      for(let k = i; k < j; k++){
+        if(breakAfter[k] >= 90){
+          skippedBreakPenalty += Math.pow(breakAfter[k] - 50, 2) * 0.4;
+        }
+      }
       const restCost = isLast ? 0 : memo[j+1].cost;
-      const totalCost = ragCost + breakPenalty + restCost;
+      const totalCost = ragCost + breakPenalty + skippedBreakPenalty + restCost;
       if(totalCost < bestCost){
         bestCost = totalCost;
         bestLine = [i, j];
@@ -89,7 +99,7 @@ function phraseLineBreak(wordWidths, breakAfter, maxLineUnits, interWord){
 // Block-justification: scale each line uniformly so its width matches the widest.
 // "less is" (4.8 units) gets scaled 1.67× to match "more" (8 units).
 function blockJustify(lines, wordWidths, interWord, maxBlockScale){
-  maxBlockScale = maxBlockScale != null ? maxBlockScale : 2.4;
+  maxBlockScale = maxBlockScale != null ? maxBlockScale : 3.5;
   const widths = lines.map(idxs=>{
     let w = 0;
     idxs.forEach((wi, i)=>{

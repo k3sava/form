@@ -120,8 +120,13 @@ window.FORM_PHILOSOPHY = {
       const italic = layout.italicStops && b.wordObj.isStop;
       const color = isPayoff ? this.palette.fg : (isSetup ? this.palette.dim : this.palette.fg);
 
-      // Drop cap on the opening word of beat 0: scale the first character up.
-      const isOpener = params.dropcap && b.beatIndex === 0 && b.wordObj.isBeatStart && b.lineIndex === 0 && idx === 0;
+      // Drop cap on the opening word of beat 0, only when the opener is
+      // lowercase. Drop caps are a scale-up of a LOWERCASE leading letter
+      // into a decorative cap. When the input is already uppercase, the cap
+      // is redundant and creates a double-tall L that fights the payoff.
+      const firstChar = b.word.charAt(0);
+      const openerIsLowercase = firstChar && firstChar === firstChar.toLowerCase() && firstChar !== firstChar.toUpperCase();
+      const isOpener = params.dropcap && openerIsLowercase && b.beatIndex === 0 && b.wordObj.isBeatStart && b.lineIndex === 0 && idx === 0;
       const sz = b.unitPx;
       ctx.fillStyle = color;
       ctx.font = specFor(layout.voice, wt, italic, sz);
