@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#0a0a0a">
+<meta name="description" content="Editorial poster maker. Type a phrase, the system arranges it in a magazine spread: classical serif hierarchy, italic deck, horizontal rules. PNG or video export. Part of FORM, a typography lab.">
+<title>Editorial poster maker — FORM</title>
+<link rel="stylesheet" href="../shared/style.css">
+<script src="../shared/app.js" defer></script>
+<script src="../shared/parse.js" defer></script>
+<script src="../shared/philosophies/editorial.js" defer></script>
+</head>
+<body>
+
+<div id="rec-overlay">
+  <div class="rec-inner">
+    <div class="rec-dot"></div>
+    <span id="rec-label">RECORDING — 30s</span>
+    <div class="rec-track"><div id="rec-bar"></div></div>
+  </div>
+</div>
+
+<div class="ov" id="splash" role="dialog" aria-modal="true" aria-labelledby="spl-title">
+  <div class="spl-inner">
+    <div class="spl-title" id="spl-title">EDITORIAL</div>
+    <div class="spl-desc">a magazine spread · part of FORM</div>
+    <div class="sgrid sck">
+      <div class="srow"><span class="skey">Type</span><span class="sdsc">edit phrase</span></div>
+      <div class="srow"><span class="skey">1–5</span><span class="sdsc">switch philosophy</span></div>
+      <div class="srow"><span class="skey">Space</span><span class="sdsc">play / pause motion</span></div>
+      <div class="srow"><span class="skey">/</span><span class="sdsc">focus phrase input</span></div>
+      <div class="srow"><span class="skey">T</span><span class="sdsc">theme</span></div>
+      <div class="srow"><span class="skey">S</span><span class="sdsc">save PNG</span></div>
+      <div class="srow"><span class="skey">R</span><span class="sdsc">record video</span></div>
+      <div class="srow"><span class="skey">?</span><span class="sdsc">help</span></div>
+      <div class="srow cta">
+        <span class="skey">Enter</span>
+        <span class="cta-phrase"><span class="cta-word">tap anywhere to begin</span><span class="blink-dot"></span></span>
+      </div>
+    </div>
+    <div class="sgrid sct">
+      <div class="srow"><span class="skey">Tap</span><span class="sdsc">edit / interact</span></div>
+      <div class="srow"><span class="skey">Swipe</span><span class="sdsc">switch philosophy</span></div>
+      <div class="srow"><span class="skey">Hold</span><span class="sdsc">show controls</span></div>
+      <div class="srow"><span class="skey">⋯</span><span class="sdsc">help in top corner</span></div>
+      <div class="srow cta">
+        <span class="skey">Tap</span>
+        <span class="cta-phrase"><span class="cta-word">tap anywhere to begin</span><span class="blink-dot"></span></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="topbar">
+  <button class="tb" id="btn-help" aria-label="Help" title="Help (?)">?<span class="kbk">?</span></button>
+  <button class="tb" id="btn-theme" aria-label="Toggle theme" title="Theme (T)">
+    <svg class="moon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 9.2A5.5 5.5 0 1 1 6.8 2.5a4.5 4.5 0 0 0 6.7 6.7z"/></svg>
+    <svg class="sun"  viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.4M8 13.1v1.4M1.5 8h1.4M13.1 8h1.4M3.4 3.4l1 1M11.6 11.6l1 1M3.4 12.6l1-1M11.6 4.4l1-1"/></svg>
+    <span class="kbk">T</span>
+  </button>
+  <button class="tb" id="btn-drawer" aria-label="Open controls drawer" title="Drawer (/)">✎<span class="kbk">/</span></button>
+  <button class="tb" id="btn-save" aria-label="Save PNG" title="Save PNG (S)">↓<span class="kbk">S</span></button>
+  <button class="tb" id="btn-record" aria-label="Record video" title="Record video (R)">●<span class="kbk">R</span></button>
+</div>
+
+<div id="controlbar">
+  <a class="pb" href="../swiss/"     data-id="swiss"     aria-label="Swiss"    >SWISS<span class="kbk">1</span></a>
+  <a class="pb on" href="../editorial/" data-id="editorial" aria-label="Editorial">EDITORIAL<span class="kbk">2</span></a>
+  <a class="pb"    href="../brutalist/" data-id="brutalist" aria-label="Brutalist (coming soon)" style="opacity:.45">BRUTALIST<span class="kbk">3</span></a>
+  <a class="pb"    href="../kinetic/"   data-id="kinetic"   aria-label="Kinetic (coming soon)"   style="opacity:.45">KINETIC<span class="kbk">4</span></a>
+  <a class="pb"    href="../painterly/" data-id="painterly" aria-label="Painterly (coming soon)" style="opacity:.45">PAINTERLY<span class="kbk">5</span></a>
+  <a class="pb"    href="../blend/"     data-id="blend"     aria-label="Blend (coming soon)"     style="opacity:.45">BLEND<span class="kbk">B</span></a>
+</div>
+
+<aside id="drawer" aria-label="Controls" role="region">
+  <div class="drw-section">
+    <span class="drw-label">Phrase</span>
+    <input id="text-input" type="text" value="LESS. BETTER." placeholder="YOUR TEXT" autocomplete="off" spellcheck="false">
+  </div>
+  <div class="drw-section">
+    <span class="drw-label">Format</span>
+    <div class="fmt-row">
+      <button class="fmt-btn active" data-fmt="square" aria-label="Square 1:1">&#x25A1;</button>
+      <button class="fmt-btn" data-fmt="portrait" aria-label="Portrait 4:5">&#x2590;</button>
+      <button class="fmt-btn" data-fmt="landscape" aria-label="Landscape 1.91:1">&#x2582;</button>
+    </div>
+  </div>
+  <div class="drw-section">
+    <span class="drw-label">Parameters</span>
+    <div class="param-row" id="param-row"></div>
+  </div>
+</aside>
+
+<main id="canvas-wrap"><canvas id="canvas"></canvas></main>
+
+<script>
+window.addEventListener('load', function(){
+  const phil = window.FORM_PHILOSOPHY;
+  window.state.philosophy = phil;
+  window.state.controls = Object.assign({}, phil.defaults);
+
+  const {canvas, ctx, size} = window.__canvasReady();
+  const textInput = document.getElementById('text-input');
+  const paramRow = document.getElementById('param-row');
+
+  function buildParams(){
+    paramRow.innerHTML='';
+    phil.controls.forEach((p,i)=>{
+      const val = window.state.controls[p.key];
+      const div = document.createElement('div');
+      div.className='param';
+      div.innerHTML = '<div class="param-header"><span class="param-label">'+p.label+'</span><span class="param-val" id="pv'+i+'">'+p.fmt(val)+'</span></div><input type="range" min="'+p.min+'" max="'+p.max+'" step="'+p.step+'" value="'+val+'" id="ps'+i+'">';
+      paramRow.appendChild(div);
+      div.querySelector('input').oninput = function(){
+        const v=parseFloat(this.value);
+        window.state.controls[p.key]=v;
+        document.getElementById('pv'+i).textContent = p.fmt(v);
+      };
+    });
+  }
+  buildParams();
+
+  document.querySelectorAll('.fmt-btn').forEach(btn => {
+    btn.onclick = () => {
+      window.state.format = btn.dataset.fmt;
+      document.querySelectorAll('.fmt-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      size();
+    };
+  });
+
+  function updateAria(){
+    canvas.setAttribute('aria-label', 'FORM '+phil.name+' poster: "'+window.state.text+'"');
+  }
+  textInput.addEventListener('input', () => {
+    window.state.text = textInput.value.trim() || 'LESS. BETTER.';
+    window.state.tree = window.__parse.basic(window.state.text);
+    updateAria();
+  });
+  window.state.text = textInput.value;
+  window.state.tree = window.__parse.basic(window.state.text);
+  updateAria();
+  window.__parse.rich(window.state.text).then(t => { window.state.tree=t; }).catch(()=>{});
+
+  window.__bindShortcuts({
+    onNext: (dir) => {
+      const chips = document.querySelectorAll('#controlbar .pb');
+      const cur = Array.from(chips).findIndex(c => c.classList.contains('on'));
+      const n = chips.length;
+      const next = (cur + dir + n) % n;
+      chips[next].click();
+    },
+    onJump: (idx) => {
+      const chips = document.querySelectorAll('#controlbar .pb');
+      if (chips[idx]) chips[idx].click();
+    },
+    textInput,
+  });
+  window.__bindExport(canvas);
+
+  function tick(ts){
+    if(window.__motionPaused){ requestAnimationFrame(tick); return; }
+    const fmt = window.FORMATS[window.state.format];
+    const layout = phil.layout(window.state.tree, fmt, window.state.controls);
+    phil.render(ctx, layout, ts, window.state.controls, window.state.tree);
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+});
+</script>
+</body>
+</html>
