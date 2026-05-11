@@ -952,6 +952,7 @@ const LOOP=30000;
 let startTime=null;
 
 function tick(ts){
+  if(window.__motionPaused){requestAnimationFrame(tick);return;}
   if(!startTime)startTime=ts;
   const t=(ts-startTime)%LOOP;
   const fmt=FORMATS[state.format];
@@ -1096,6 +1097,50 @@ document.getElementById('btn-record').onclick=function(){
     close();
   });
   window.__drawer={open:openIt,close,toggle};
+})();
+
+// KEYBOARD SHORTCUTS
+(function(){
+  const textInput=document.getElementById('text-input');
+  document.addEventListener('keydown',(e)=>{
+    // ignore when typing in the input
+    if(document.activeElement===textInput)return;
+    // ignore modifier-only
+    if(['Shift','Control','Alt','Meta','CapsLock'].includes(e.key))return;
+    // splash open? splash handler already takes care of it
+    if(!document.body.classList.contains('chrome-on'))return;
+
+    const k=e.key;
+    if(k==='Tab'){
+      e.preventDefault();
+      const n=EFFECTS.length;
+      const dir=e.shiftKey?-1:1;
+      const next=(state.effect+dir+n)%n;
+      const btn=document.querySelectorAll('#controlbar .pb')[next];
+      btn&&btn.click();
+    }else if(k>='1'&&k<='9'){
+      const idx=parseInt(k,10)-1;
+      if(idx<EFFECTS.length){
+        const btn=document.querySelectorAll('#controlbar .pb')[idx];
+        btn&&btn.click();
+      }
+    }else if(k===' '){
+      e.preventDefault();
+      window.__motionPaused=!window.__motionPaused;
+    }else if(k==='/'){
+      e.preventDefault();
+      if(window.__drawer)window.__drawer.open();
+      setTimeout(()=>textInput.focus(),360);
+    }else if(k==='t'||k==='T'){
+      document.getElementById('btn-theme').click();
+    }else if(k==='s'||k==='S'){
+      document.getElementById('btn-save').click();
+    }else if(k==='r'||k==='R'){
+      document.getElementById('btn-record').click();
+    }else if(k==='?'){
+      window.__splash.open();
+    }
+  });
 })();
 </script>
 </body>
