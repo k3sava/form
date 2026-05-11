@@ -244,10 +244,10 @@ Append to the `<style>` block, before `@keyframes blink`:
 .spl-inner{max-width:490px;width:100%;display:flex;flex-direction:column;align-items:center;}
 .spl-title{font-size:clamp(.92rem,3vw,1.5rem);font-weight:200;letter-spacing:.3em;color:var(--ov-text);margin-bottom:7px;text-align:center;}
 .spl-desc{font-size:clamp(.54rem,.82vw,.66rem);font-weight:300;letter-spacing:.1em;color:var(--ov-dim);line-height:2;text-align:center;margin-bottom:24px;max-width:360px;}
-.sck{display:block;width:100%;margin-bottom:0;}
+.sgrid{border:1px solid var(--ov-border);border-radius:10px;overflow:hidden;grid-template-columns:1fr 1fr;width:100%;background:var(--ov-grid-bg);}
+.sck{display:grid;width:100%;margin-bottom:0;}
 .sct{display:none;width:100%;margin-bottom:0;}
-@media(hover:none) and (pointer:coarse){.sck{display:none;}.sct{display:block;}}
-.sgrid{border:1px solid var(--ov-border);border-radius:10px;overflow:hidden;display:grid;grid-template-columns:1fr 1fr;width:100%;background:var(--ov-grid-bg);}
+@media(hover:none) and (pointer:coarse){.sck{display:none;}.sct{display:grid;}}
 @media(max-width:440px){.sgrid{grid-template-columns:1fr;}}
 .srow{display:flex;align-items:center;padding:9px 12px;gap:9px;background:var(--ov-row-bg);border-right:1px solid var(--ov-row-border);border-bottom:1px solid var(--ov-row-border);}
 .srow:nth-child(2n){border-right:none;}
