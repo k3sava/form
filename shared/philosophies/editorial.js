@@ -34,7 +34,8 @@ window.FORM_PHILOSOPHY={
     const rules=[];
 
     const headTargetH=Math.round(usableH*0.42);
-    const headFontSize=Math.min(headTargetH, usableW*1.5/Math.max(headline.text.length,1));
+    // Georgia bold averages ~0.70 of em at peak weight; leave 8% margin headroom for morph.
+    const headFontSize=Math.min(headTargetH, usableW*0.92/Math.max(headline.text.length*0.7,1));
     const headY=Math.round(marginY + usableH*0.45);
     boxes.push({
       beatIndex:hIdx,
