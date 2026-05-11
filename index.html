@@ -1073,10 +1073,29 @@ document.getElementById('btn-record').onclick=function(){
       e.preventDefault();
       open();
     }else if(e.key==='Escape'){
-      // future tasks will close drawer/etc — no-op for now
+      if(window.__drawer)window.__drawer.close();
     }
   });
   window.__splash={open,dismiss};
+})();
+
+// ═══════════════════════════════════════════
+// DRAWER open/close
+// ═══════════════════════════════════════════
+(function(){
+  const drawer=document.getElementById('drawer');
+  const btn=document.getElementById('btn-drawer');
+  function toggle(){drawer.classList.toggle('open');}
+  function close(){drawer.classList.remove('open');}
+  function openIt(){drawer.classList.add('open');}
+  btn.onclick=toggle;
+  document.addEventListener('click',(e)=>{
+    if(!drawer.classList.contains('open'))return;
+    if(drawer.contains(e.target))return;
+    if(btn.contains(e.target))return;
+    close();
+  });
+  window.__drawer={open:openIt,close,toggle};
 })();
 </script>
 </body>
